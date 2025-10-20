@@ -161,7 +161,7 @@
 	margin: 0 auto;
 	padding: 20px;
 	display: flex;
-	gap: 30px;
+	gap: 15px;
 	position: relative;
 }
 
@@ -668,7 +668,7 @@ select.loop-filter-sort {
 .products-grid {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
-	gap: 30px;
+	gap: 15px;
 	justify-items: stretch !important;
 	align-items: start !important;
 	justify-content: start !important;

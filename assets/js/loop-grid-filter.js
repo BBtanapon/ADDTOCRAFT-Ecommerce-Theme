@@ -1,6 +1,7 @@
 /**
- * Loop Grid Filter - ULTIMATE DEDUPLICATION FIX
+ * Loop Grid Filter - ULTIMATE DEDUPLICATION FIX + Widget Reinitialization
  * Filters by Product ID FIRST - guarantees zero duplicates
+ * ADDED: Reinitializes all widget scripts after filtering
  *
  * @package HelloElementorChild
  */
@@ -570,7 +571,7 @@
 		}
 
 		/**
-		 * Render products to grid - GUARANTEED UNIQUE
+		 * Render products to grid - GUARANTEED UNIQUE + Reinitialize Widgets
 		 */
 		renderProducts(products) {
 			console.log(`🔨 Rendering ${products.length} UNIQUE products`);
@@ -645,6 +646,146 @@
 			} else {
 				this.hideNoResults();
 			}
+
+			// ✨ CRITICAL FIX: Reinitialize all widget scripts
+			this.reinitializeWidgets();
+		}
+
+		/**
+		 * ✨ NEW: Reinitialize all custom widgets after filtering
+		 * This ensures scripts like product_image_hover_gallery work again
+		 */
+		reinitializeWidgets() {
+			console.log("🔄 Reinitializing widgets after filter...");
+
+			// Wait for DOM to be ready
+			setTimeout(() => {
+				// Reinitialize product image hover galleries
+				this.reinitializeImageHoverGalleries();
+
+				// Reinitialize any other custom widgets
+				this.reinitializeOtherWidgets();
+
+				console.log("✅ Widgets reinitialized successfully");
+			}, 100);
+		}
+
+		/**
+		 * Reinitialize Product Image Hover Gallery widgets
+		 */
+		reinitializeImageHoverGalleries() {
+			const galleries = this.targetGrid.find(".product-hover-gallery");
+
+			if (galleries.length === 0) return;
+
+			console.log(`   🖼️ Found ${galleries.length} image galleries`);
+
+			galleries.each(function () {
+				const $gallery = $(this);
+				const $wrapper = $gallery.closest(
+					".product-hover-gallery-wrapper",
+				);
+				const images = $gallery.find(".gallery-image");
+				const indicators = $wrapper.find(".gallery-indicator");
+				const totalImages = images.length;
+
+				if (totalImages <= 1) return;
+
+				let currentIndex = 0;
+				let isHovering = false;
+				let cycleInterval;
+				const autoCycle = $gallery.data("auto-cycle");
+				const cycleSpeed = $gallery.data("cycle-speed") || 800;
+
+				function showImage(index) {
+					images.removeClass("active");
+					indicators.removeClass("active");
+					images.eq(index).addClass("active");
+					indicators.eq(index).addClass("active");
+					currentIndex = index;
+				}
+
+				function nextImage() {
+					const nextIndex = (currentIndex + 1) % totalImages;
+					showImage(nextIndex);
+				}
+
+				function startCycle() {
+					if (isHovering) {
+						if (autoCycle) {
+							nextImage();
+							cycleInterval = setInterval(nextImage, cycleSpeed);
+						} else {
+							if (totalImages > 1) {
+								showImage(1);
+							}
+						}
+					}
+				}
+
+				function stopCycle() {
+					if (cycleInterval) {
+						clearInterval(cycleInterval);
+						cycleInterval = null;
+					}
+				}
+
+				// Remove old event listeners to prevent duplicates
+				$wrapper.off("mouseenter mouseleave");
+				indicators.off("click");
+
+				// Attach new event listeners
+				$wrapper.on("mouseenter", function () {
+					isHovering = true;
+					startCycle();
+				});
+
+				$wrapper.on("mouseleave", function () {
+					isHovering = false;
+					stopCycle();
+					showImage(0);
+				});
+
+				indicators.on("click", function (e) {
+					e.preventDefault();
+					e.stopPropagation();
+					const index = $(this).data("index");
+					stopCycle();
+					showImage(index);
+					if (isHovering && autoCycle) {
+						setTimeout(function () {
+							cycleInterval = setInterval(nextImage, cycleSpeed);
+						}, cycleSpeed);
+					}
+				});
+
+				console.log(
+					`      ✅ Gallery initialized with ${totalImages} images`,
+				);
+			});
+		}
+
+		/**
+		 * Reinitialize other custom widgets (add as needed)
+		 */
+		reinitializeOtherWidgets() {
+			// Add to cart buttons
+			const $addToCartButtons = this.targetGrid.find(".ajax_add_to_cart");
+			if ($addToCartButtons.length > 0) {
+				console.log(
+					`   🛒 Found ${$addToCartButtons.length} add to cart buttons`,
+				);
+				// WooCommerce handles this automatically, but you can add custom handlers here
+			}
+
+			// Product badges (if they have dynamic functionality)
+			const $badges = this.targetGrid.find(".product-badge");
+			if ($badges.length > 0) {
+				console.log(`   🏷️ Found ${$badges.length} product badges`);
+				// Add any custom badge functionality here
+			}
+
+			// Any other custom widgets can be reinitialized here
 		}
 
 		animateItems() {
