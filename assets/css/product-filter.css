@@ -9,7 +9,49 @@
 /* =============================================================================
     BASE STYLES & LAYOUT
     ============================================================================= */
+/**
+     * CRITICAL: Ensure Elementor Loop Template CSS is Applied
+     */
 
+/* Force display for loop items */
+.e-loop-item,
+.product-loop-item {
+	display: block !important;
+	visibility: visible !important;
+	opacity: 1 !important;
+}
+
+/* Ensure grid layout is preserved */
+.custom-product-loop-grid {
+	display: grid !important;
+}
+
+.elementor-loop-container {
+	display: grid !important;
+}
+
+/* Ensure widgets inside loop items render properly */
+.e-loop-item .elementor-widget,
+.product-loop-item .elementor-widget {
+	display: block;
+	width: 100%;
+}
+
+/* Force Elementor sections to display */
+.e-loop-item .elementor-section,
+.product-loop-item .elementor-section {
+	display: block;
+	width: 100%;
+}
+
+/* Ensure columns display properly */
+.e-loop-item .elementor-column,
+.product-loop-item .elementor-column {
+	display: block;
+	width: 100%;
+}
+
+/* Keep your existing CSS below this... */
 .custom-product-filter-wrapper {
 	font-family: "Trispace", sans-serif;
 	color: #1e1e1e;

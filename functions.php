@@ -1,24 +1,20 @@
 <?php
-
 /**
- * Theme functions and definitions.
+ * Theme functions and definitions - COMPLETE FIX
  *
  * @package HelloElementorChild
  */
 
 if (!defined("ABSPATH")) {
-	exit(); // Exit if accessed directly.
+	exit();
 }
 
-define("HELLO_ELEMENTOR_CHILD_VERSION", "2.0.0");
+define("HELLO_ELEMENTOR_CHILD_VERSION", "2.1.0");
 
 // =============================================================================
 // CORE THEME SETUP
 // =============================================================================
 
-/**
- * Enqueue child theme styles
- */
 add_action("wp_enqueue_scripts", "hello_elementor_child_scripts_styles", 20);
 function hello_elementor_child_scripts_styles()
 {
@@ -30,9 +26,6 @@ function hello_elementor_child_scripts_styles()
 	);
 }
 
-/**
- * Enqueue Dashicons for non-logged-in users
- */
 add_action("wp_enqueue_scripts", "load_dashicons_for_non_logged_in_users");
 function load_dashicons_for_non_logged_in_users()
 {
@@ -42,12 +35,97 @@ function load_dashicons_for_non_logged_in_users()
 }
 
 // =============================================================================
-// AUTO ATTRIBUTES SYSTEM - FIXED (NO DUPLICATES)
+// ELEMENTOR CSS PRINTING FIX - CRITICAL
 // =============================================================================
 
 /**
- * Get ONLY WooCommerce registered attributes (global taxonomies)
+ * Force print Elementor template CSS inline
  */
+add_action("wp_head", "force_print_elementor_loop_css", 999);
+function force_print_elementor_loop_css()
+{
+	if (!class_exists("\Elementor\Plugin")) {
+		return;
+	}
+
+	global $post;
+
+	if (!$post) {
+		return;
+	}
+
+	// Get Elementor data
+	$document = \Elementor\Plugin::$instance->documents->get($post->ID);
+
+	if (!$document) {
+		return;
+	}
+
+	$data = $document->get_elements_data();
+
+	if (empty($data)) {
+		return;
+	}
+
+	// Find all loop grids and their templates
+	$template_ids = [];
+	array_walk_recursive($data, function ($value, $key) use (&$template_ids) {
+		if ($key === "template_id" && !empty($value)) {
+			$template_ids[] = $value;
+		}
+	});
+
+	// Print CSS for each template
+	foreach (array_unique($template_ids) as $template_id) {
+		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
+
+		if ($css_file) {
+			echo "\n<!-- Loop Template CSS: {$template_id} -->\n";
+			echo '<style id="elementor-post-' . esc_attr($template_id) . '">';
+			echo $css_file->get_content();
+			echo "</style>" . "\n";
+		}
+	}
+}
+
+/**
+ * Ensure CSS files are generated
+ */
+add_action("elementor/css-file/post/enqueue", "ensure_css_file_generated");
+function ensure_css_file_generated($css_file)
+{
+	$css_file->update();
+}
+
+/**
+ * Force CSS regeneration on save
+ */
+add_action("elementor/editor/after_save", "force_css_regeneration", 10, 2);
+function force_css_regeneration($post_id, $editor_data)
+{
+	$css_file = \Elementor\Core\Files\CSS\Post::create($post_id);
+	$css_file->update();
+}
+
+/**
+ * Clear and regenerate all CSS
+ */
+add_action("init", "maybe_regenerate_all_elementor_css");
+function maybe_regenerate_all_elementor_css()
+{
+	// Change version to force regeneration
+	if (!get_option("elementor_css_regenerated_v4")) {
+		if (class_exists("\Elementor\Plugin")) {
+			\Elementor\Plugin::$instance->files_manager->clear_cache();
+			update_option("elementor_css_regenerated_v4", true);
+		}
+	}
+}
+
+// =============================================================================
+// AUTO ATTRIBUTES SYSTEM
+// =============================================================================
+
 function get_woocommerce_attributes_only()
 {
 	if (!class_exists("WooCommerce")) {
@@ -90,9 +168,6 @@ function get_woocommerce_attributes_only()
 	return $attributes;
 }
 
-/**
- * Get ALL attributes from a product with proper price data
- */
 function get_all_product_attributes($product)
 {
 	if (!$product) {
@@ -113,7 +188,6 @@ function get_all_product_attributes($product)
 		"attributes" => [],
 	];
 
-	// Get proper price data
 	if ($product->is_type("variable")) {
 		$variation_prices = $product->get_variation_prices(true);
 		if (!empty($variation_prices["price"])) {
@@ -144,19 +218,16 @@ function get_all_product_attributes($product)
 		}
 	}
 
-	// Get categories as term IDs
 	$categories = get_the_terms($product->get_id(), "product_cat");
 	if ($categories && !is_wp_error($categories)) {
 		$attributes_data["categories"] = wp_list_pluck($categories, "term_id");
 	}
 
-	// Get tags as term IDs
 	$tags = get_the_terms($product->get_id(), "product_tag");
 	if ($tags && !is_wp_error($tags)) {
 		$attributes_data["tags"] = wp_list_pluck($tags, "term_id");
 	}
 
-	// Get ONLY WooCommerce registered attributes
 	$product_attributes = $product->get_attributes();
 
 	foreach ($product_attributes as $attribute) {
@@ -185,9 +256,6 @@ function get_all_product_attributes($product)
 	return $attributes_data;
 }
 
-/**
- * FIXED: Output product data as JSON ONLY (no duplicate HTML)
- */
 add_action("wp_footer", "output_products_data_json", 100);
 function output_products_data_json()
 {
@@ -196,8 +264,6 @@ function output_products_data_json()
 	}
 
 	$products_data = [];
-
-	// Get all published products
 	$products = wc_get_products([
 		"limit" => -1,
 		"status" => "publish",
@@ -213,7 +279,6 @@ function output_products_data_json()
 	if (empty($products_data)) {
 		return;
 	}
-	// Output ONLY JSON data (no HTML output)
 	?>
     <script id="loop-grid-products-data" type="application/json">
         <?php echo wp_json_encode($products_data); ?>
@@ -227,47 +292,18 @@ function output_products_data_json()
 <?php
 }
 
-/**
- * Get all available attributes (for filter widget)
- */
 function get_all_available_attributes()
 {
 	return get_woocommerce_attributes_only();
 }
 
 // =============================================================================
-// ENQUEUE AUTO ATTRIBUTES SCRIPT
+// ENQUEUE SCRIPTS
 // =============================================================================
 
-add_action("wp_enqueue_scripts", "enqueue_auto_attribute_script");
-function enqueue_auto_attribute_script()
+add_action("wp_enqueue_scripts", "enqueue_all_filter_assets");
+function enqueue_all_filter_assets()
 {
-	// Auto attributes script
-	wp_enqueue_script(
-		"loop-grid-auto-attributes",
-		get_stylesheet_directory_uri() . "/assets/js/auto-attributes.js",
-		["jquery"],
-		HELLO_ELEMENTOR_CHILD_VERSION,
-		true,
-	);
-
-	wp_localize_script("loop-grid-auto-attributes", "autoAttributesData", [
-		"ajaxUrl" => admin_url("admin-ajax.php"),
-		"nonce" => wp_create_nonce("loop_grid_filter_nonce"),
-	]);
-}
-
-// =============================================================================
-// LOOP GRID FILTER SYSTEM
-// =============================================================================
-
-/**
- * Enqueue Loop Grid Filter assets
- */
-add_action("wp_enqueue_scripts", "enqueue_loop_grid_filter_assets");
-function enqueue_loop_grid_filter_assets()
-{
-	// Only load on pages with Elementor
 	if (!did_action("elementor/loaded")) {
 		return;
 	}
@@ -280,7 +316,16 @@ function enqueue_loop_grid_filter_assets()
 		HELLO_ELEMENTOR_CHILD_VERSION,
 	);
 
-	// JavaScript
+	// Auto attributes
+	wp_enqueue_script(
+		"loop-grid-auto-attributes",
+		get_stylesheet_directory_uri() . "/assets/js/auto-attributes.js",
+		["jquery"],
+		HELLO_ELEMENTOR_CHILD_VERSION,
+		true,
+	);
+
+	// Filter script
 	wp_enqueue_script(
 		"loop-grid-filter-script",
 		get_stylesheet_directory_uri() . "/assets/js/loop-grid-filter.js",
@@ -289,7 +334,20 @@ function enqueue_loop_grid_filter_assets()
 		true,
 	);
 
-	// Localize script
+	// Force CSS loader
+	wp_enqueue_script(
+		"force-template-css",
+		get_stylesheet_directory_uri() . "/assets/js/force-template-css.js",
+		["jquery", "elementor-frontend"],
+		HELLO_ELEMENTOR_CHILD_VERSION,
+		true,
+	);
+
+	wp_localize_script("loop-grid-auto-attributes", "autoAttributesData", [
+		"ajaxUrl" => admin_url("admin-ajax.php"),
+		"nonce" => wp_create_nonce("loop_grid_filter_nonce"),
+	]);
+
 	wp_localize_script("loop-grid-filter-script", "loopGridFilterData", [
 		"ajaxUrl" => admin_url("admin-ajax.php"),
 		"nonce" => wp_create_nonce("loop_grid_filter_nonce"),
@@ -297,7 +355,7 @@ function enqueue_loop_grid_filter_assets()
 }
 
 // =============================================================================
-// WOOCOMMERCE AJAX ADD TO CART
+// WOOCOMMERCE AJAX
 // =============================================================================
 
 add_action(
@@ -358,12 +416,9 @@ function woocommerce_ajax_add_to_cart()
 }
 
 // =============================================================================
-// ELEMENTOR CUSTOM WIDGETS
+// ELEMENTOR WIDGETS
 // =============================================================================
 
-/**
- * Register Elementor Widget Category
- */
 add_action(
 	"elementor/elements/categories_registered",
 	"add_elementor_widget_categories",
@@ -376,9 +431,6 @@ function add_elementor_widget_categories($elements_manager)
 	]);
 }
 
-/**
- * Register Custom Elementor Widgets
- */
 add_action("elementor/widgets/register", "register_custom_elementor_widgets");
 function register_custom_elementor_widgets($widgets_manager)
 {
@@ -388,7 +440,7 @@ function register_custom_elementor_widgets($widgets_manager)
 		"product-badge-widget.php",
 		"loop-grid-filter-widget.php",
 		"product-add-to-cart.php",
-		"custom-product-loop-grid.php", // NEW WIDGET
+		"custom-product-loop-grid.php",
 	];
 
 	foreach ($widget_files as $file) {
@@ -398,7 +450,6 @@ function register_custom_elementor_widgets($widgets_manager)
 		}
 	}
 
-	// Register widgets
 	if (class_exists("Elementor_Login_Logout_Widget")) {
 		$widgets_manager->register(new \Elementor_Login_Logout_Widget());
 	}
@@ -419,9 +470,6 @@ function register_custom_elementor_widgets($widgets_manager)
 	}
 }
 
-/**
- * Create elementor-widgets directory check
- */
 add_action("init", "create_elementor_widgets_directory");
 function create_elementor_widgets_directory()
 {

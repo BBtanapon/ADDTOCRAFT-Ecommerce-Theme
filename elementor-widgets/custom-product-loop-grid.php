@@ -1,8 +1,6 @@
 <?php
 /**
- * Custom Product Loop Grid Widget
- * Works perfectly with Loop Grid Filter Widget
- * Can use Elementor templates for product cards
+ * Custom Product Loop Grid Widget - FULLY FIXED
  *
  * @package HelloElementorChild
  */
@@ -13,6 +11,8 @@ if (!defined("ABSPATH")) {
 
 class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 {
+	private $loaded_templates = [];
+
 	public function get_name()
 	{
 		return "custom_product_loop_grid";
@@ -38,9 +38,20 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		return ["product", "loop", "grid", "woocommerce", "shop"];
 	}
 
+	public function get_style_depends()
+	{
+		// Ensure Elementor styles are loaded
+		return ["elementor-frontend"];
+	}
+
+	public function get_script_depends()
+	{
+		return ["elementor-frontend"];
+	}
+
 	protected function register_controls()
 	{
-		// ============ QUERY SETTINGS ============
+		// QUERY SETTINGS
 		$this->start_controls_section("section_query", [
 			"label" => __("Query", "hello-elementor-child"),
 		]);
@@ -60,7 +71,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 				),
 				"categories" => __("By Categories", "hello-elementor-child"),
 				"tags" => __("By Tags", "hello-elementor-child"),
-				"custom" => __("Custom Query", "hello-elementor-child"),
 			],
 		]);
 
@@ -72,7 +82,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"max" => 100,
 		]);
 
-		// Category selection
 		$categories = get_terms([
 			"taxonomy" => "product_cat",
 			"hide_empty" => false,
@@ -90,12 +99,9 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"type" => \Elementor\Controls_Manager::SELECT2,
 			"multiple" => true,
 			"options" => $category_options,
-			"condition" => [
-				"query_type" => "categories",
-			],
+			"condition" => ["query_type" => "categories"],
 		]);
 
-		// Tag selection
 		$tags = get_terms([
 			"taxonomy" => "product_tag",
 			"hide_empty" => false,
@@ -113,9 +119,7 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"type" => \Elementor\Controls_Manager::SELECT2,
 			"multiple" => true,
 			"options" => $tag_options,
-			"condition" => [
-				"query_type" => "tags",
-			],
+			"condition" => ["query_type" => "tags"],
 		]);
 
 		$this->add_control("orderby", [
@@ -150,7 +154,7 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
 		$this->end_controls_section();
 
-		// ============ LAYOUT SETTINGS ============
+		// LAYOUT SETTINGS
 		$this->start_controls_section("section_layout", [
 			"label" => __("Layout", "hello-elementor-child"),
 		]);
@@ -179,15 +183,8 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"label" => __("Column Gap", "hello-elementor-child"),
 			"type" => \Elementor\Controls_Manager::SLIDER,
 			"size_units" => ["px"],
-			"range" => [
-				"px" => [
-					"min" => 0,
-					"max" => 100,
-				],
-			],
-			"default" => [
-				"size" => 30,
-			],
+			"range" => ["px" => ["min" => 0, "max" => 100]],
+			"default" => ["size" => 30],
 			"selectors" => [
 				"{{WRAPPER}} .custom-product-loop-grid" =>
 					"column-gap: {{SIZE}}{{UNIT}};",
@@ -198,15 +195,8 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"label" => __("Row Gap", "hello-elementor-child"),
 			"type" => \Elementor\Controls_Manager::SLIDER,
 			"size_units" => ["px"],
-			"range" => [
-				"px" => [
-					"min" => 0,
-					"max" => 100,
-				],
-			],
-			"default" => [
-				"size" => 30,
-			],
+			"range" => ["px" => ["min" => 0, "max" => 100]],
+			"default" => ["size" => 30],
 			"selectors" => [
 				"{{WRAPPER}} .custom-product-loop-grid" =>
 					"row-gap: {{SIZE}}{{UNIT}};",
@@ -215,7 +205,7 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
 		$this->end_controls_section();
 
-		// ============ TEMPLATE SETTINGS ============
+		// TEMPLATE SETTINGS
 		$this->start_controls_section("section_template", [
 			"label" => __("Product Card Template", "hello-elementor-child"),
 		]);
@@ -224,13 +214,8 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"label" => __("Use Custom Template", "hello-elementor-child"),
 			"type" => \Elementor\Controls_Manager::SWITCHER,
 			"default" => "no",
-			"description" => __(
-				"Use an Elementor template for product cards",
-				"hello-elementor-child",
-			),
 		]);
 
-		// Get all Elementor templates
 		$templates = \Elementor\Plugin::instance()
 			->templates_manager->get_source("local")
 			->get_items();
@@ -249,31 +234,12 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"label" => __("Select Template", "hello-elementor-child"),
 			"type" => \Elementor\Controls_Manager::SELECT,
 			"options" => $template_options,
-			"condition" => [
-				"use_custom_template" => "yes",
-			],
-			"description" => __(
-				"Create a product card template in Templates > Add New",
-				"hello-elementor-child",
-			),
-		]);
-
-		$this->add_control("template_note", [
-			"type" => \Elementor\Controls_Manager::RAW_HTML,
-			"raw" => __(
-				"<strong>How to use:</strong><br>1. Go to Templates > Saved Templates > Add New<br>2. Create your product card design<br>3. Use Dynamic Tags to show product data<br>4. Select that template above",
-				"hello-elementor-child",
-			),
-			"content_classes" =>
-				"elementor-panel-alert elementor-panel-alert-info",
-			"condition" => [
-				"use_custom_template" => "yes",
-			],
+			"condition" => ["use_custom_template" => "yes"],
 		]);
 
 		$this->end_controls_section();
 
-		// ============ STYLE SECTION ============
+		// STYLE SECTION
 		$this->start_controls_section("section_style", [
 			"label" => __("Grid Style", "hello-elementor-child"),
 			"tab" => \Elementor\Controls_Manager::TAB_STYLE,
@@ -306,10 +272,8 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		$settings = $this->get_settings_for_display();
 		$widget_id = $this->get_id();
 
-		// Build query
+		// Build and execute query
 		$query_args = $this->build_query_args($settings);
-
-		// Execute query
 		$products_query = new WP_Query($query_args);
 
 		if (!$products_query->have_posts()) {
@@ -319,9 +283,15 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			return;
 		}
 
-		// Get grid class for responsive columns
-		$grid_class = "custom-product-loop-grid";
-		$grid_class .= " elementor-grid";
+		// CRITICAL: Load template CSS BEFORE rendering
+		if (
+			$settings["use_custom_template"] === "yes" &&
+			!empty($settings["template_id"])
+		) {
+			$this->force_load_template_css($settings["template_id"]);
+		}
+
+		$grid_class = "custom-product-loop-grid elementor-grid";
 		$grid_class .= " elementor-grid-" . $settings["columns"];
 		$grid_class .=
 			" elementor-grid-tablet-" . ($settings["columns_tablet"] ?? "2");
@@ -345,7 +315,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                 		continue;
                 	}
 
-                	// Get all product data for filtering
                 	$product_data = $this->get_product_data_attributes(
                 		$product,
                 	);
@@ -356,26 +325,21 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                              <?php echo $this->render_data_attributes(
                              	$product_data,
                              ); ?>>
-
                         <?php if (
                         	$settings["use_custom_template"] === "yes" &&
                         	!empty($settings["template_id"])
                         ) {
-                        	// Render Elementor template
                         	$this->render_elementor_template(
                         		$settings["template_id"],
                         	);
                         } else {
-                        	// Render default product card
                         	$this->render_default_product_card($product);
                         } ?>
-
                     </article>
                     <?php
                 }
                 wp_reset_postdata();
                 ?>
-
             </div>
         </div>
 
@@ -386,7 +350,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                 display: grid;
                 width: 100%;
             }
-
             #product-loop-<?php echo esc_attr($widget_id); ?> .e-loop-item {
                 position: relative;
             }
@@ -395,8 +358,63 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 	}
 
 	/**
-	 * Build WP_Query arguments based on settings
+	 * CRITICAL: Force load template CSS
 	 */
+	private function force_load_template_css($template_id)
+	{
+		if (empty($template_id) || !class_exists("\Elementor\Plugin")) {
+			return;
+		}
+
+		// Prevent loading same template CSS multiple times
+		if (in_array($template_id, $this->loaded_templates)) {
+			return;
+		}
+
+		$this->loaded_templates[] = $template_id;
+
+		// Method 1: Enqueue CSS file
+		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
+		if ($css_file) {
+			$css_file->enqueue();
+		}
+
+		// Method 2: Print inline CSS
+		$this->print_template_inline_css($template_id);
+
+		// Method 3: Load Google Fonts
+		if (
+			method_exists(
+				'\Elementor\Plugin::$instance->frontend',
+				"enqueue_font",
+			)
+		) {
+			\Elementor\Plugin::$instance->frontend->enqueue_font($template_id);
+		}
+	}
+
+	/**
+	 * Print template CSS inline
+	 */
+	private function print_template_inline_css($template_id)
+	{
+		if (empty($template_id)) {
+			return;
+		}
+
+		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
+		$css_content = $css_file ? $css_file->get_content() : "";
+
+		if (!empty($css_content)) {
+			echo "\n<!-- Template CSS: {$template_id} -->\n";
+			echo '<style id="loop-template-css-' .
+				esc_attr($template_id) .
+				'">';
+			echo $css_content;
+			echo "</style>" . "\n";
+		}
+	}
+
 	private function build_query_args($settings)
 	{
 		$args = [
@@ -406,7 +424,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"ignore_sticky_posts" => true,
 		];
 
-		// Order
 		switch ($settings["orderby"]) {
 			case "price":
 				$args["orderby"] = "meta_value_num";
@@ -428,7 +445,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 				$args["order"] = $settings["order"];
 		}
 
-		// Query type
 		switch ($settings["query_type"]) {
 			case "featured":
 				$args["tax_query"] = [
@@ -472,7 +488,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 				break;
 		}
 
-		// Exclude out of stock
 		if ($settings["exclude_out_of_stock"] === "yes") {
 			$args["meta_query"][] = [
 				"key" => "_stock_status",
@@ -487,9 +502,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		);
 	}
 
-	/**
-	 * Get all product data for filtering
-	 */
 	private function get_product_data_attributes($product)
 	{
 		$data = [
@@ -500,7 +512,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"sale-price" => $product->get_sale_price(),
 		];
 
-		// Variable product prices
 		if ($product->is_type("variable")) {
 			$variation_prices = $product->get_variation_prices(true);
 			if (!empty($variation_prices["price"])) {
@@ -509,7 +520,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			}
 		}
 
-		// Categories (as term IDs)
 		$categories = get_the_terms($product->get_id(), "product_cat");
 		if ($categories && !is_wp_error($categories)) {
 			$data["categories"] = implode(
@@ -518,23 +528,19 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			);
 		}
 
-		// Tags (as term IDs)
 		$tags = get_the_terms($product->get_id(), "product_tag");
 		if ($tags && !is_wp_error($tags)) {
 			$data["tags"] = implode(",", wp_list_pluck($tags, "term_id"));
 		}
 
-		// WooCommerce Attributes (ONLY taxonomy attributes)
 		$product_attributes = $product->get_attributes();
 		foreach ($product_attributes as $attribute) {
-			// ONLY process taxonomy (WooCommerce registered) attributes
 			if (!$attribute->is_taxonomy()) {
 				continue;
 			}
 
 			$taxonomy = $attribute->get_name();
 
-			// Only process WooCommerce attributes (pa_*)
 			if (strpos($taxonomy, "pa_") !== 0) {
 				continue;
 			}
@@ -551,9 +557,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		return $data;
 	}
 
-	/**
-	 * Render data attributes for filtering
-	 */
 	private function render_data_attributes($data)
 	{
 		$output = "";
@@ -567,9 +570,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		return $output;
 	}
 
-	/**
-	 * Render Elementor template
-	 */
 	private function render_elementor_template($template_id)
 	{
 		if (empty($template_id)) {
@@ -582,9 +582,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		);
 	}
 
-	/**
-	 * Render default product card (fallback)
-	 */
 	private function render_default_product_card($product)
 	{
 		$is_on_sale = $product->is_on_sale();
@@ -647,12 +644,10 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                 overflow: hidden;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
             }
-
             .default-product-card:hover {
                 transform: translateY(-5px);
                 box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             }
-
             .default-product-card .product-badges {
                 position: absolute;
                 top: 15px;
@@ -662,7 +657,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                 justify-content: space-between;
                 z-index: 10;
             }
-
             .default-product-card .badge-sale,
             .default-product-card .badge-tag {
                 background: #1e1e1e;
@@ -672,48 +666,40 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                 font-weight: 700;
                 border-radius: 4px;
             }
-
             .default-product-card .product-image-link {
                 display: block;
                 overflow: hidden;
                 aspect-ratio: 1 / 1;
             }
-
             .default-product-card .product-image-link img {
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
                 transition: transform 0.5s ease;
             }
-
             .default-product-card:hover .product-image-link img {
                 transform: scale(1.08);
             }
-
             .default-product-card .product-info {
                 padding: 20px;
                 background: white;
             }
-
             .default-product-card .product-title {
                 margin: 0 0 8px 0;
                 font-size: 14px;
                 font-weight: 600;
                 line-height: 1.3;
             }
-
             .default-product-card .product-title a {
                 color: #1e1e1e;
                 text-decoration: none;
             }
-
             .default-product-card .product-price {
                 margin-bottom: 12px;
                 font-size: 17px;
                 font-weight: 700;
                 color: #1e1e1e;
             }
-
             .default-product-card .btn-select-options,
             .default-product-card .button {
                 width: 100%;
@@ -729,7 +715,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                 border-radius: 4px;
                 transition: all 0.3s ease;
             }
-
             .default-product-card .btn-select-options:hover,
             .default-product-card .button:hover {
                 background: #1e1e1e;
