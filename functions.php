@@ -1,6 +1,7 @@
 <?php
 /**
  * Theme functions and definitions - COMPLETE FIX
+ * OPTIMIZED: Only loads necessary product data, prevents redundancy
  *
  * @package HelloElementorChild
  */
@@ -256,6 +257,10 @@ function get_all_product_attributes($product)
 	return $attributes_data;
 }
 
+/**
+ * OPTIMIZED: Output only necessary products data
+ * Reduces redundancy and improves performance
+ */
 add_action("wp_footer", "output_products_data_json", 100);
 function output_products_data_json()
 {
@@ -263,11 +268,34 @@ function output_products_data_json()
 		return;
 	}
 
+	// OPTIMIZATION: Only load products that might be displayed on this page
+	global $post;
+
 	$products_data = [];
-	$products = wc_get_products([
+
+	// Determine which products to load based on context
+	$args = [
 		"limit" => -1,
 		"status" => "publish",
-	]);
+	];
+
+	// If we're on a specific category page, only load those products
+	if (is_product_category()) {
+		$category = get_queried_object();
+		$args["category"] = [$category->slug];
+	}
+	// If we're on a tag page, only load those products
+	elseif (is_product_tag()) {
+		$tag = get_queried_object();
+		$args["tag"] = [$tag->slug];
+	}
+	// If on shop page, load all (but could be limited further)
+	elseif (is_shop()) {
+		// Could add pagination limits here if needed
+		// $args['limit'] = 100; // Limit to first 100 for performance
+	}
+
+	$products = wc_get_products($args);
 
 	foreach ($products as $product) {
 		$product_data = get_all_product_attributes($product);
@@ -343,6 +371,15 @@ function enqueue_all_filter_assets()
 		true,
 	);
 
+	// Pagination script
+	wp_enqueue_script(
+		"custom-loop-grid-pagination",
+		get_stylesheet_directory_uri() . "/assets/js/loop-grid-pagination.js",
+		["jquery", "elementor-frontend"],
+		HELLO_ELEMENTOR_CHILD_VERSION,
+		true,
+	);
+
 	wp_localize_script("loop-grid-auto-attributes", "autoAttributesData", [
 		"ajaxUrl" => admin_url("admin-ajax.php"),
 		"nonce" => wp_create_nonce("loop_grid_filter_nonce"),
@@ -352,6 +389,214 @@ function enqueue_all_filter_assets()
 		"ajaxUrl" => admin_url("admin-ajax.php"),
 		"nonce" => wp_create_nonce("loop_grid_filter_nonce"),
 	]);
+
+	wp_localize_script(
+		"custom-loop-grid-pagination",
+		"loopGridPaginationData",
+		[
+			"ajaxUrl" => admin_url("admin-ajax.php"),
+			"nonce" => wp_create_nonce("loop_grid_pagination_nonce"),
+		],
+	);
+}
+
+// =============================================================================
+// AJAX PAGINATION HANDLER
+// =============================================================================
+
+add_action("wp_ajax_load_more_products", "ajax_load_more_products");
+add_action("wp_ajax_nopriv_load_more_products", "ajax_load_more_products");
+
+function ajax_load_more_products()
+{
+	// Verify nonce
+	check_ajax_referer("loop_grid_pagination_nonce", "nonce");
+
+	// Get parameters
+	$page = isset($_POST["page"]) ? intval($_POST["page"]) : 1;
+	$query_args = isset($_POST["query_args"])
+		? json_decode(stripslashes($_POST["query_args"]), true)
+		: [];
+	$settings = isset($_POST["settings"])
+		? json_decode(stripslashes($_POST["settings"]), true)
+		: [];
+	$widget_id = isset($_POST["widget_id"])
+		? sanitize_text_field($_POST["widget_id"])
+		: "";
+
+	// Update page number
+	$query_args["paged"] = $page;
+
+	// Execute query
+	$products_query = new WP_Query($query_args);
+
+	if (!$products_query->have_posts()) {
+		wp_send_json_error([
+			"message" => __("No more products found.", "hello-elementor-child"),
+		]);
+	}
+
+	// Generate HTML
+	ob_start();
+
+	while ($products_query->have_posts()) {
+
+		$products_query->the_post();
+		global $product;
+
+		if (!$product) {
+			continue;
+		}
+
+		// Get product data
+		$product_data = [];
+		$product_data["product-id"] = $product->get_id();
+		$product_data["title"] = $product->get_name();
+		$product_data["price"] = $product->get_price();
+		$product_data["regular-price"] = $product->get_regular_price();
+		$product_data["sale-price"] = $product->get_sale_price();
+
+		// Variable product
+		if ($product->is_type("variable")) {
+			$variation_prices = $product->get_variation_prices(true);
+			if (!empty($variation_prices["price"])) {
+				$product_data["min-price"] = min($variation_prices["price"]);
+				$product_data["max-price"] = max($variation_prices["price"]);
+			}
+		}
+
+		// Categories
+		$categories = get_the_terms($product->get_id(), "product_cat");
+		if ($categories && !is_wp_error($categories)) {
+			$product_data["categories"] = implode(
+				",",
+				wp_list_pluck($categories, "term_id"),
+			);
+		}
+
+		// Tags
+		$tags = get_the_terms($product->get_id(), "product_tag");
+		if ($tags && !is_wp_error($tags)) {
+			$product_data["tags"] = implode(
+				",",
+				wp_list_pluck($tags, "term_id"),
+			);
+		}
+
+		// Attributes
+		$product_attributes = $product->get_attributes();
+		foreach ($product_attributes as $attribute) {
+			if (!$attribute->is_taxonomy()) {
+				continue;
+			}
+
+			$taxonomy = $attribute->get_name();
+			if (strpos($taxonomy, "pa_") !== 0) {
+				continue;
+			}
+
+			$terms = wc_get_product_terms($product->get_id(), $taxonomy, [
+				"fields" => "slugs",
+			]);
+
+			if (!empty($terms) && !is_wp_error($terms)) {
+				$product_data[$taxonomy] = implode(",", $terms);
+			}
+		}
+
+		// Render data attributes
+		$data_attrs = "";
+		foreach ($product_data as $key => $value) {
+			$data_attrs .= sprintf(
+				' data-%s="%s"',
+				esc_attr($key),
+				esc_attr($value),
+			);
+		}
+		?>
+        <article class="e-loop-item product-loop-item product-id-<?php echo esc_attr(
+        	$product->get_id(),
+        ); ?>" <?php echo $data_attrs; ?>>
+            <?php // Render template or default card
+            if (
+            	!empty($settings["use_custom_template"]) &&
+            	$settings["use_custom_template"] === "yes" &&
+            	!empty($settings["template_id"])
+            ) {
+            	echo \Elementor\Plugin::instance()->frontend->get_builder_content(
+            		$settings["template_id"],
+            		true,
+            	);
+            } else {
+            	render_default_product_card_ajax($product);
+            } ?>
+        </article>
+        <?php
+	}
+
+	wp_reset_postdata();
+
+	$html = ob_get_clean();
+
+	wp_send_json_success([
+		"html" => $html,
+		"page" => $page,
+		"max_pages" => $products_query->max_num_pages,
+	]);
+}
+
+function render_default_product_card_ajax($product)
+{
+	$is_on_sale = $product->is_on_sale();
+	$tags = get_the_terms($product->get_id(), "product_tag");
+	$main_tag = $tags && !is_wp_error($tags) ? $tags[0]->name : "";
+	?>
+    <div class="default-product-card">
+        <div class="product-badges">
+            <?php if ($is_on_sale): ?>
+                <span class="badge-sale"><?php _e(
+                	"Sale!",
+                	"hello-elementor-child",
+                ); ?></span>
+            <?php endif; ?>
+            <?php if ($main_tag): ?>
+                <span class="badge-tag"><?php echo esc_html(
+                	$main_tag,
+                ); ?></span>
+            <?php endif; ?>
+        </div>
+
+        <a href="<?php echo esc_url(
+        	get_permalink(),
+        ); ?>" class="product-image-link">
+            <?php echo $product->get_image("woocommerce_thumbnail"); ?>
+        </a>
+
+        <div class="product-info">
+            <h3 class="product-title">
+                <a href="<?php echo esc_url(get_permalink()); ?>">
+                    <?php echo esc_html($product->get_name()); ?>
+                </a>
+            </h3>
+
+            <div class="product-price">
+                <?php echo $product->get_price_html(); ?>
+            </div>
+
+            <div class="product-actions">
+                <?php if ($product->is_type("variable")): ?>
+                    <a href="<?php echo esc_url(
+                    	get_permalink(),
+                    ); ?>" class="btn-select-options">
+                        <?php _e("SELECT OPTIONS", "hello-elementor-child"); ?>
+                    </a>
+                <?php else: ?>
+                    <?php woocommerce_template_loop_add_to_cart(); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php
 }
 
 // =============================================================================

@@ -1,5 +1,6 @@
 /**
- * Product Filter Styles - FIXED VERSION
+ * Product Filter Styles - GRID ALIGNMENT FIX
+ * Prevents items from centering when filtered
  *
  * @package HelloElementorChild
  */
@@ -7,11 +8,33 @@
 @import url("https://fonts.googleapis.com/css2?family=Trispace:wght@300;400;500;600;700&display=swap");
 
 /* =============================================================================
+    CRITICAL: GRID ALIGNMENT FIX
+    ============================================================================= */
+
+/* Force grid to align items at start (left), not center */
+.elementor-loop-container,
+.custom-product-loop-grid {
+	display: grid !important;
+	justify-items: stretch !important;
+	align-items: start !important;
+	justify-content: start !important;
+	align-content: start !important;
+}
+
+/* Ensure grid items take full width of their grid cell */
+.e-loop-item,
+.product-loop-item,
+.elementor-loop-container > *,
+.custom-product-loop-grid > * {
+	width: 100% !important;
+	max-width: 100% !important;
+	justify-self: stretch !important;
+	align-self: start !important;
+}
+
+/* =============================================================================
     BASE STYLES & LAYOUT
     ============================================================================= */
-/**
-     * CRITICAL: Ensure Elementor Loop Template CSS is Applied
-     */
 
 /* Force display for loop items */
 .e-loop-item,
@@ -19,15 +42,6 @@
 	display: block !important;
 	visibility: visible !important;
 	opacity: 1 !important;
-}
-
-/* Ensure grid layout is preserved */
-.custom-product-loop-grid {
-	display: grid !important;
-}
-
-.elementor-loop-container {
-	display: grid !important;
 }
 
 /* Ensure widgets inside loop items render properly */
@@ -51,7 +65,7 @@
 	width: 100%;
 }
 
-/* Keep your existing CSS below this... */
+/* Main wrapper */
 .custom-product-filter-wrapper {
 	font-family: "Trispace", sans-serif;
 	color: #1e1e1e;
@@ -529,11 +543,6 @@ select.loop-filter-sort {
     PRODUCTS GRID
     ============================================================================= */
 
-/* Ensure Elementor Loop Grid maintains its layout */
-.elementor-loop-container {
-	display: grid !important;
-}
-
 /* Elementor's default grid layouts */
 .elementor-loop-container[class*="elementor-grid"] {
 	display: grid !important;
@@ -569,6 +578,10 @@ select.loop-filter-sort {
 	display: grid;
 	grid-template-columns: repeat(3, 1fr);
 	gap: 30px;
+	justify-items: stretch !important;
+	align-items: start !important;
+	justify-content: start !important;
+	align-content: start !important;
 }
 
 .products-grid[data-columns="2"] {

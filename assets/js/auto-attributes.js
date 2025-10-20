@@ -1,8 +1,9 @@
 /**
  * Auto Attributes Applier - FIXED VERSION
- * Properly stores attributes with full taxonomy names (pa_color, pa_size)
+ * Only applies attributes to products that are actually rendered
+ * Prevents redundant data and duplicates
  *
- * Save this as: assets/js/auto-attributes.js
+ * @package HelloElementorChild
  */
 
 (function ($) {
@@ -26,57 +27,6 @@
 				Object.keys(this.productsData).length,
 			);
 
-			if (Object.keys(this.productsData).length > 0) {
-				console.group(
-					"%c📋 All Products Data",
-					"color: #FF9800; font-weight: bold;",
-				);
-				Object.entries(this.productsData).forEach(
-					([productId, data]) => {
-						console.group(
-							`%cProduct ID: ${productId}`,
-							"color: #9C27B0; font-weight: bold;",
-						);
-						console.log("📝 Title:", data.title);
-						console.log("💰 Price:", data.price);
-						console.log("💵 Regular Price:", data.regular_price);
-						console.log("🏷️ Sale Price:", data.sale_price);
-						console.log("🔥 On Sale:", data.on_sale);
-						console.log("📁 Categories (IDs):", data.categories);
-						console.log("🏷️ Tags (IDs):", data.tags);
-						console.log(
-							"%c🎨 ALL ATTRIBUTES:",
-							"color: #E91E63; font-weight: bold;",
-							data.attributes,
-						);
-
-						if (
-							data.attributes &&
-							Object.keys(data.attributes).length > 0
-						) {
-							console.group(
-								"%c   → Attribute Details",
-								"color: #00BCD4;",
-							);
-							Object.entries(data.attributes).forEach(
-								([attrName, attrValues]) => {
-									console.log(`   ${attrName}:`, attrValues);
-								},
-							);
-							console.groupEnd();
-						}
-
-						console.groupEnd();
-					},
-				);
-				console.groupEnd();
-			} else {
-				console.warn(
-					"%c⚠️ No products data found!",
-					"color: #FF5722; font-weight: bold;",
-				);
-			}
-
 			if (document.readyState === "loading") {
 				document.addEventListener("DOMContentLoaded", () =>
 					this.applyAttributes(),
@@ -92,7 +42,7 @@
 
 		applyAttributes() {
 			const loopItems = document.querySelectorAll(
-				".e-loop-item, .elementor-loop-container > *",
+				".e-loop-item, .elementor-loop-container > *, .product-loop-item",
 			);
 
 			if (loopItems.length === 0) {
@@ -152,7 +102,7 @@
 					console.log("   data-categories:", item.dataset.categories);
 					console.log("   data-tags:", item.dataset.tags);
 
-					// Log all custom attributes with their ACTUAL data attribute names
+					// Log all custom attributes
 					const customAttrs = Object.keys(item.dataset).filter(
 						(key) =>
 							![
@@ -174,7 +124,6 @@
 							"color: #E91E63; font-weight: bold;",
 						);
 						customAttrs.forEach((attr) => {
-							// Convert camelCase to kebab-case for display
 							const kebabAttr = attr
 								.replace(/([A-Z])/g, "-$1")
 								.toLowerCase();
@@ -224,8 +173,6 @@
 		}
 
 		getProductId(element) {
-			// CRITICAL FIX: Try multiple methods to get product ID
-
 			// 1. Try data attribute
 			if (
 				element.dataset.productId &&
@@ -234,13 +181,13 @@
 				return element.dataset.productId;
 			}
 
-			// 2. Try classes - IMPROVED to catch e-loop-item-XXX
+			// 2. Try classes
 			const classes = element.className;
 			const patterns = [
-				/e-loop-item-(\d+)/, // e-loop-item-500
-				/post-(\d+)/, // post-500
-				/product-id-(\d+)/, // product-id-500
-				/product-(\d+)/, // product-500
+				/e-loop-item-(\d+)/,
+				/post-(\d+)/,
+				/product-id-(\d+)/,
+				/product-(\d+)/,
 			];
 
 			for (const pattern of patterns) {
@@ -253,7 +200,7 @@
 				}
 			}
 
-			// 3. Try to find in child elements
+			// 3. Try add to cart button
 			const addToCartBtn = element.querySelector("[data-product_id]");
 			if (addToCartBtn) {
 				return addToCartBtn.dataset.product_id;
@@ -262,12 +209,10 @@
 			// 4. Try finding product link
 			const productLink = element.querySelector('a[href*="/product/"]');
 			if (productLink) {
-				// Extract from URL like /product/max/ -> need to match with our data
 				const href = productLink.href;
 				const match = href.match(/product\/([^\/]+)/);
 				if (match) {
 					const slug = match[1];
-					// Try to find product ID by slug in our data
 					for (const [id, data] of Object.entries(
 						window.loopGridProductsData || {},
 					)) {
@@ -332,11 +277,7 @@
 						? attrValues.join(",")
 						: attrValues;
 
-					// CRITICAL: Keep the FULL taxonomy name (pa_color, pa_size, etc.)
-					// DO NOT simplify it - the filter expects exact taxonomy names
-
-					// Convert to camelCase for dataset (JavaScript convention)
-					// pa_color -> paColor, pa_size -> paSize
+					// Convert to camelCase for dataset
 					const camelCaseAttr = this.toCamelCase(attrName);
 
 					// Set the data attribute
@@ -359,19 +300,10 @@
 			}
 		}
 
-		/**
-		 * Convert snake_case or kebab-case to camelCase
-		 * pa_color -> paColor
-		 * pa-color -> paColor
-		 */
 		toCamelCase(str) {
 			return str.replace(/[-_]([a-z])/g, (g) => g[1].toUpperCase());
 		}
 
-		/**
-		 * Convert snake_case to kebab-case
-		 * pa_color -> pa-color
-		 */
 		toKebabCase(str) {
 			return str.replace(/_/g, "-");
 		}
@@ -380,7 +312,7 @@
 	// Initialize when ready
 	new AutoAttributesApplier();
 
-	// Add helper function to view product data anytime
+	// Helper function to view product data anytime
 	window.viewProductData = function (productId) {
 		if (!window.loopGridProductsData) {
 			console.error("No product data available");
@@ -417,7 +349,7 @@
 		}
 	};
 
-	// Add helper to check what's on a specific element
+	// Helper to check element data
 	window.checkElementData = function (selector) {
 		const element = document.querySelector(selector || ".e-loop-item");
 		if (!element) {
@@ -441,7 +373,6 @@
 		console.groupEnd();
 	};
 
-	// Log helper function availability
 	console.log(
 		"%c💡 Helper Functions Available!",
 		"color: #00BCD4; font-weight: bold;",

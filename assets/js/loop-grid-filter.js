@@ -1,6 +1,7 @@
 /**
  * Loop Grid Filter JavaScript - COMPLETE FIX
  * Properly filters Elementor Loop Grid with categories, attributes, and maintains styles
+ * FIXES: No more duplicates on reset, proper grid clearing
  *
  * @package HelloElementorChild
  */
@@ -131,17 +132,31 @@
 		storeOriginalItems() {
 			this.originalItems = [];
 			const items = this.targetGrid.find(
-				'.e-loop-item, [class*="elementor-post"]',
+				'.e-loop-item, [class*="elementor-post"], .product-loop-item',
 			);
 
 			console.log(`📦 Found ${items.length} items to store`);
+
+			// Store unique items only (prevent duplicates from start)
+			const seenIds = new Set();
 
 			items.each((index, item) => {
 				const $item = $(item);
 				const product = this.extractProductData($item);
 
+				// Skip if we've already stored this product
+				if (seenIds.has(product.id)) {
+					console.log(
+						`⚠️ Skipping duplicate product ID: ${product.id}`,
+					);
+					return;
+				}
+
+				seenIds.add(product.id);
+
+				// CRITICAL FIX: Store a DEEP clone
 				this.originalItems.push({
-					element: item.cloneNode(true),
+					element: item.cloneNode(true), // Deep clone with all children
 					$element: $item,
 					data: product,
 					html: item.outerHTML,
@@ -153,7 +168,7 @@
 			console.log(
 				"✅ Stored",
 				this.originalItems.length,
-				"original items",
+				"unique original items",
 			);
 
 			if (this.originalItems.length > 0) {
@@ -178,7 +193,7 @@
 				minPrice: 0,
 			};
 
-			// Get product ID - try multiple methods
+			// Get product ID
 			data.id =
 				$item.data("product-id") ||
 				$item.attr("data-product-id") ||
@@ -602,8 +617,13 @@
 		rebuildGrid(items) {
 			console.log("🔨 Rebuilding grid with", items.length, "items");
 
-			// Clear grid
-			this.targetGrid.empty();
+			// CRITICAL FIX: Store reference to grid container
+			const gridContainer = this.targetGrid[0];
+
+			// Clear grid completely - remove ALL children
+			while (gridContainer.firstChild) {
+				gridContainer.removeChild(gridContainer.firstChild);
+			}
 
 			// Restore grid properties
 			this.targetGrid.attr("class", this.gridClasses);
@@ -614,10 +634,20 @@
 				this.targetGrid.attr(key, value);
 			});
 
-			// Add filtered items
+			// CRITICAL FIX: Ensure grid alignment is correct
+			// Force grid items to align at start, not center
+			this.targetGrid.css({
+				"justify-items": "stretch",
+				"align-items": "start",
+				"justify-content": "start",
+				"align-content": "start",
+			});
+
+			// Add filtered items - use cloned elements
 			items.forEach((item) => {
-				const $clonedElement = $(item.element).clone(true);
-				this.targetGrid.append($clonedElement);
+				// Clone the element properly with all children
+				const clonedNode = item.element.cloneNode(true);
+				gridContainer.appendChild(clonedNode);
 			});
 
 			// Animate items
@@ -669,10 +699,12 @@
 		resetFilters() {
 			console.log("🔄 Resetting filters");
 
+			// Clear all form inputs
 			this.widget.find(".loop-filter-search").val("");
 			this.widget.find(".loop-filter-sort").val("date");
 			this.widget.find('input[type="checkbox"]').prop("checked", false);
 
+			// Reset price sliders
 			const maxPrice =
 				parseInt(
 					this.widget.find(".loop-price-max-slider").attr("max"),
@@ -681,6 +713,7 @@
 			this.widget.find(".loop-price-max-slider").val(maxPrice);
 			this.updatePriceDisplay();
 
+			// Reset filter state
 			this.currentFilters = {
 				search: "",
 				sort: "date",
@@ -691,7 +724,11 @@
 				maxPrice: maxPrice,
 			};
 
+			// CRITICAL FIX: Rebuild with original items (in original order)
 			this.rebuildGrid(this.originalItems);
+
+			// Hide no results message if visible
+			this.toggleNoResultsMessage(false);
 		}
 
 		setupMobile() {
@@ -754,3 +791,33 @@
 		}, 500);
 	});
 })(jQuery);
+
+/* Additional CSS to prevent grid centering */
+if (typeof document !== "undefined") {
+	const style = document.createElement("style");
+	style.textContent = `
+		/* Force grid alignment to start */
+		.elementor-loop-container,
+		.custom-product-loop-grid {
+			justify-items: stretch !important;
+			align-items: start !important;
+			justify-content: start !important;
+			align-content: start !important;
+		}
+
+		/* Ensure grid items take full width */
+		.e-loop-item,
+		.product-loop-item {
+			width: 100% !important;
+			max-width: 100% !important;
+		}
+
+		/* Prevent grid items from centering */
+		.elementor-loop-container > *,
+		.custom-product-loop-grid > * {
+			justify-self: stretch !important;
+			align-self: start !important;
+		}
+	`;
+	document.head.appendChild(style);
+}

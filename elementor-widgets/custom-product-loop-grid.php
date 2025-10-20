@@ -1,6 +1,7 @@
 <?php
 /**
- * Custom Product Loop Grid Widget - FULLY FIXED
+ * Custom Product Loop Grid Widget - ENHANCED
+ * Added: Custom Gap, Infinite Scroll, Load More Button, Pagination
  *
  * @package HelloElementorChild
  */
@@ -40,13 +41,12 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
 	public function get_style_depends()
 	{
-		// Ensure Elementor styles are loaded
 		return ["elementor-frontend"];
 	}
 
 	public function get_script_depends()
 	{
-		return ["elementor-frontend"];
+		return ["elementor-frontend", "custom-loop-grid-pagination"];
 	}
 
 	protected function register_controls()
@@ -205,6 +205,69 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
 		$this->end_controls_section();
 
+		// PAGINATION SETTINGS
+		$this->start_controls_section("section_pagination", [
+			"label" => __("Pagination", "hello-elementor-child"),
+		]);
+
+		$this->add_control("pagination_type", [
+			"label" => __("Pagination Type", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::SELECT,
+			"default" => "none",
+			"options" => [
+				"none" => __("None", "hello-elementor-child"),
+				"load_more" => __("Load More Button", "hello-elementor-child"),
+				"infinite" => __("Infinite Scroll", "hello-elementor-child"),
+				"numbers" => __(
+					"Page Numbers (Navigation)",
+					"hello-elementor-child",
+				),
+			],
+		]);
+
+		$this->add_control("load_more_text", [
+			"label" => __("Load More Button Text", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::TEXT,
+			"default" => __("Load More", "hello-elementor-child"),
+			"condition" => [
+				"pagination_type" => "load_more",
+			],
+		]);
+
+		$this->add_control("loading_text", [
+			"label" => __("Loading Text", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::TEXT,
+			"default" => __("Loading...", "hello-elementor-child"),
+			"condition" => [
+				"pagination_type" => ["load_more", "infinite"],
+			],
+		]);
+
+		$this->add_control("no_more_text", [
+			"label" => __("No More Products Text", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::TEXT,
+			"default" => __("No more products", "hello-elementor-child"),
+			"condition" => [
+				"pagination_type" => ["load_more", "infinite"],
+			],
+		]);
+
+		$this->add_control("infinite_scroll_threshold", [
+			"label" => __(
+				"Scroll Threshold (px from bottom)",
+				"hello-elementor-child",
+			),
+			"type" => \Elementor\Controls_Manager::NUMBER,
+			"default" => 300,
+			"min" => 0,
+			"max" => 2000,
+			"condition" => [
+				"pagination_type" => "infinite",
+			],
+		]);
+
+		$this->end_controls_section();
+
 		// TEMPLATE SETTINGS
 		$this->start_controls_section("section_template", [
 			"label" => __("Product Card Template", "hello-elementor-child"),
@@ -265,6 +328,93 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		]);
 
 		$this->end_controls_section();
+
+		// PAGINATION BUTTON STYLE
+		$this->start_controls_section("section_pagination_style", [
+			"label" => __("Pagination Style", "hello-elementor-child"),
+			"tab" => \Elementor\Controls_Manager::TAB_STYLE,
+			"condition" => [
+				"pagination_type" => ["load_more", "numbers"],
+			],
+		]);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			[
+				"name" => "pagination_typography",
+				"selector" =>
+					"{{WRAPPER}} .loop-load-more-btn, {{WRAPPER}} .loop-pagination a",
+			],
+		);
+
+		$this->add_control("pagination_text_color", [
+			"label" => __("Text Color", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::COLOR,
+			"default" => "#ffffff",
+			"selectors" => [
+				"{{WRAPPER}} .loop-load-more-btn" => "color: {{VALUE}};",
+				"{{WRAPPER}} .loop-pagination a" => "color: {{VALUE}};",
+			],
+		]);
+
+		$this->add_control("pagination_bg_color", [
+			"label" => __("Background Color", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::COLOR,
+			"default" => "#1e1e1e",
+			"selectors" => [
+				"{{WRAPPER}} .loop-load-more-btn" =>
+					"background-color: {{VALUE}};",
+				"{{WRAPPER}} .loop-pagination a" =>
+					"background-color: {{VALUE}};",
+			],
+		]);
+
+		$this->add_control("pagination_hover_color", [
+			"label" => __("Hover Background Color", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::COLOR,
+			"default" => "#333333",
+			"selectors" => [
+				"{{WRAPPER}} .loop-load-more-btn:hover" =>
+					"background-color: {{VALUE}};",
+				"{{WRAPPER}} .loop-pagination a:hover" =>
+					"background-color: {{VALUE}};",
+			],
+		]);
+
+		$this->add_responsive_control("pagination_padding", [
+			"label" => __("Padding", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::DIMENSIONS,
+			"size_units" => ["px", "em"],
+			"default" => [
+				"top" => 12,
+				"right" => 30,
+				"bottom" => 12,
+				"left" => 30,
+				"unit" => "px",
+			],
+			"selectors" => [
+				"{{WRAPPER}} .loop-load-more-btn" =>
+					"padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};",
+				"{{WRAPPER}} .loop-pagination a" =>
+					"padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};",
+			],
+		]);
+
+		$this->add_control("pagination_border_radius", [
+			"label" => __("Border Radius", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::SLIDER,
+			"size_units" => ["px"],
+			"range" => ["px" => ["min" => 0, "max" => 50]],
+			"default" => ["size" => 4],
+			"selectors" => [
+				"{{WRAPPER}} .loop-load-more-btn" =>
+					"border-radius: {{SIZE}}{{UNIT}};",
+				"{{WRAPPER}} .loop-pagination a" =>
+					"border-radius: {{SIZE}}{{UNIT}};",
+			],
+		]);
+
+		$this->end_controls_section();
 	}
 
 	protected function render()
@@ -272,8 +422,12 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		$settings = $this->get_settings_for_display();
 		$widget_id = $this->get_id();
 
+		// Get current page
+		$paged = get_query_var("paged") ? get_query_var("paged") : 1;
+
 		// Build and execute query
 		$query_args = $this->build_query_args($settings);
+		$query_args["paged"] = $paged;
 		$products_query = new WP_Query($query_args);
 
 		if (!$products_query->have_posts()) {
@@ -297,10 +451,24 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			" elementor-grid-tablet-" . ($settings["columns_tablet"] ?? "2");
 		$grid_class .=
 			" elementor-grid-mobile-" . ($settings["columns_mobile"] ?? "1");
+
+		$pagination_type = $settings["pagination_type"];
 		?>
-        <div class="custom-product-loop-wrapper" id="product-loop-<?php echo esc_attr(
-        	$widget_id,
-        ); ?>">
+        <div class="custom-product-loop-wrapper"
+             id="product-loop-<?php echo esc_attr($widget_id); ?>"
+             data-widget-id="<?php echo esc_attr($widget_id); ?>"
+             data-pagination-type="<?php echo esc_attr($pagination_type); ?>"
+             data-max-pages="<?php echo esc_attr(
+             	$products_query->max_num_pages,
+             ); ?>"
+             data-current-page="<?php echo esc_attr($paged); ?>"
+             data-query="<?php echo esc_attr(
+             	base64_encode(json_encode($query_args)),
+             ); ?>"
+             data-settings="<?php echo esc_attr(
+             	base64_encode(json_encode($settings)),
+             ); ?>">
+
             <div class="<?php echo esc_attr($grid_class); ?>"
                  data-widget-id="<?php echo esc_attr($widget_id); ?>"
                  data-columns="<?php echo esc_attr($settings["columns"]); ?>">
@@ -341,6 +509,12 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                 wp_reset_postdata();
                 ?>
             </div>
+
+            <?php $this->render_pagination(
+            	$products_query,
+            	$settings,
+            	$widget_id,
+            ); ?>
         </div>
 
         <style>
@@ -357,45 +531,106 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
         <?php
 	}
 
-	/**
-	 * CRITICAL: Force load template CSS
-	 */
+	private function render_pagination($query, $settings, $widget_id)
+	{
+		$pagination_type = $settings["pagination_type"];
+
+		if ($pagination_type === "none" || $query->max_num_pages <= 1) {
+			return;
+		}
+
+		echo '<div class="loop-pagination-wrapper" style="text-align: center; margin-top: 40px;">';
+
+		switch ($pagination_type) {
+			case "load_more":
+				$this->render_load_more_button($query, $settings, $widget_id);
+				break;
+
+			case "infinite":
+				$this->render_infinite_scroll($query, $settings, $widget_id);
+				break;
+
+			case "numbers":
+				$this->render_page_numbers($query, $settings);
+				break;
+		}
+
+		echo "</div>";
+	}
+
+	private function render_load_more_button($query, $settings, $widget_id)
+	{
+		if ($query->max_num_pages <= 1) {
+			return;
+		} ?>
+        <button class="loop-load-more-btn"
+                data-widget-id="<?php echo esc_attr($widget_id); ?>"
+                data-page="1"
+                data-max-pages="<?php echo esc_attr($query->max_num_pages); ?>">
+            <?php echo esc_html($settings["load_more_text"]); ?>
+        </button>
+        <div class="loop-loading-message" style="display: none; margin-top: 20px; font-size: 14px;">
+            <?php echo esc_html($settings["loading_text"]); ?>
+        </div>
+        <div class="loop-no-more-message" style="display: none; margin-top: 20px; font-size: 14px; color: #999;">
+            <?php echo esc_html($settings["no_more_text"]); ?>
+        </div>
+        <?php
+	}
+
+	private function render_infinite_scroll($query, $settings, $widget_id)
+	{
+		?>
+        <div class="loop-infinite-scroll-trigger"
+             data-widget-id="<?php echo esc_attr($widget_id); ?>"
+             data-page="1"
+             data-max-pages="<?php echo esc_attr($query->max_num_pages); ?>"
+             data-threshold="<?php echo esc_attr(
+             	$settings["infinite_scroll_threshold"],
+             ); ?>"
+             style="height: 1px; visibility: hidden;"></div>
+        <div class="loop-loading-message" style="display: none; margin-top: 20px; font-size: 14px;">
+            <?php echo esc_html($settings["loading_text"]); ?>
+        </div>
+        <div class="loop-no-more-message" style="display: none; margin-top: 20px; font-size: 14px; color: #999;">
+            <?php echo esc_html($settings["no_more_text"]); ?>
+        </div>
+        <?php
+	}
+
+	private function render_page_numbers($query, $settings)
+	{
+		echo '<div class="loop-pagination loop-page-numbers">';
+		echo paginate_links([
+			"total" => $query->max_num_pages,
+			"current" => max(1, get_query_var("paged")),
+			"prev_text" => __("&laquo; Previous", "hello-elementor-child"),
+			"next_text" => __("Next &raquo;", "hello-elementor-child"),
+			"type" => "list",
+		]);
+		echo "</div>";
+	}
+
 	private function force_load_template_css($template_id)
 	{
 		if (empty($template_id) || !class_exists("\Elementor\Plugin")) {
 			return;
 		}
 
-		// Prevent loading same template CSS multiple times
 		if (in_array($template_id, $this->loaded_templates)) {
 			return;
 		}
 
 		$this->loaded_templates[] = $template_id;
 
-		// Method 1: Enqueue CSS file
 		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
 		if ($css_file) {
 			$css_file->enqueue();
 		}
 
-		// Method 2: Print inline CSS
 		$this->print_template_inline_css($template_id);
-
-		// Method 3: Load Google Fonts
-		if (
-			method_exists(
-				'\Elementor\Plugin::$instance->frontend',
-				"enqueue_font",
-			)
-		) {
-			\Elementor\Plugin::$instance->frontend->enqueue_font($template_id);
-		}
 	}
 
-	/**
-	 * Print template CSS inline
-	 */
 	private function print_template_inline_css($template_id)
 	{
 		if (empty($template_id)) {
