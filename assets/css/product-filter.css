@@ -887,3 +887,245 @@ select.loop-filter-sort {
 		height: 20px;
 	}
 }
+
+/* =============================================================================
+    CRITICAL: GRID ALIGNMENT FIX - FORCE 4 COLUMNS
+    Prevents items from centering, maintains grid layout even with 1 item
+    ============================================================================= */
+
+/* Force grid to display as grid and align items at start (left), not center */
+.elementor-loop-container,
+.custom-product-loop-grid {
+	display: grid !important;
+	grid-template-columns: repeat(4, 1fr) !important; /* FORCE 4 columns */
+	justify-items: stretch !important;
+	align-items: start !important;
+	justify-content: start !important;
+	align-content: start !important;
+	gap: 30px !important; /* Add gap between items */
+}
+
+/* Ensure grid items take full width of their grid cell */
+.e-loop-item,
+.product-loop-item,
+.elementor-loop-container > *,
+.custom-product-loop-grid > * {
+	width: 100% !important;
+	max-width: 100% !important;
+	justify-self: stretch !important;
+	align-self: start !important;
+	margin: 0 !important; /* Remove any margins that might affect layout */
+}
+
+/* Override Elementor's default grid classes to force 4 columns */
+.elementor-loop-container.elementor-grid,
+.elementor-loop-container[class*="elementor-grid"] {
+	display: grid !important;
+	grid-template-columns: repeat(4, 1fr) !important;
+}
+
+/* Responsive: Tablet - 2 columns */
+@media (max-width: 1024px) {
+	.elementor-loop-container,
+	.custom-product-loop-grid {
+		grid-template-columns: repeat(2, 1fr) !important;
+	}
+}
+
+/* Responsive: Mobile - 1 column */
+@media (max-width: 768px) {
+	.elementor-loop-container,
+	.custom-product-loop-grid {
+		grid-template-columns: repeat(1, 1fr) !important;
+	}
+}
+
+/* Additional fix: Prevent any flex behavior */
+.elementor-loop-container,
+.custom-product-loop-grid {
+	display: grid !important; /* Force grid, not flex */
+}
+
+/* Ensure no centering on the grid container */
+.elementor-loop-container,
+.custom-product-loop-grid {
+	text-align: left !important;
+	align-items: flex-start !important;
+}
+
+/* Force product cards to align left within their grid cells */
+.e-loop-item > *,
+.product-loop-item > * {
+	margin-left: 0 !important;
+	margin-right: auto !important;
+}
+
+/**
+ * CRITICAL GRID LAYOUT FIX
+ * Forces 4-column grid layout at all times
+ * Add this to the TOP of your product-filter.css
+ */
+
+/* =============================================================================
+   FORCE 4-COLUMN GRID LAYOUT - HIGHEST PRIORITY
+   ============================================================================= */
+
+/* Target all possible grid containers */
+.elementor-loop-container,
+.custom-product-loop-grid,
+.elementor-widget-loop-grid .elementor-loop-container,
+[data-widget_type="loop-grid.default"] .elementor-loop-container {
+	display: grid !important;
+	grid-template-columns: repeat(4, 1fr) !important;
+	grid-gap: 30px !important;
+	gap: 30px !important;
+	width: 100% !important;
+
+	/* Force alignment */
+	justify-items: stretch !important;
+	align-items: start !important;
+	justify-content: start !important;
+	align-content: start !important;
+
+	/* Prevent any flex behavior */
+	flex-direction: unset !important;
+	flex-wrap: unset !important;
+}
+
+/* Override ALL Elementor grid classes */
+.elementor-loop-container.elementor-grid,
+.elementor-loop-container[class*="elementor-grid-"] {
+	display: grid !important;
+	grid-template-columns: repeat(4, 1fr) !important;
+}
+
+/* Specific overrides for each grid class */
+.elementor-grid-1,
+.elementor-grid-2,
+.elementor-grid-3,
+.elementor-grid-4,
+.elementor-grid-5,
+.elementor-grid-6 {
+	grid-template-columns: repeat(4, 1fr) !important;
+}
+
+/* Force all loop items to fill their grid cell */
+.e-loop-item,
+.product-loop-item,
+.elementor-loop-container > *,
+.custom-product-loop-grid > *,
+.elementor-post {
+	width: 100% !important;
+	max-width: 100% !important;
+	min-width: 0 !important;
+
+	/* Force grid item alignment */
+	justify-self: stretch !important;
+	align-self: start !important;
+
+	/* Remove any margins that might break layout */
+	margin: 0 !important;
+
+	/* Ensure items don't have display issues */
+	display: block !important;
+}
+
+/* Prevent any wrapper from breaking the grid */
+.elementor-loop-container > * > * {
+	width: 100% !important;
+}
+
+/* =============================================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================================= */
+
+/* Tablet: 2 columns */
+@media (max-width: 1024px) {
+	.elementor-loop-container,
+	.custom-product-loop-grid,
+	.elementor-widget-loop-grid .elementor-loop-container,
+	[data-widget_type="loop-grid.default"] .elementor-loop-container {
+		grid-template-columns: repeat(2, 1fr) !important;
+	}
+
+	.elementor-grid-1,
+	.elementor-grid-2,
+	.elementor-grid-3,
+	.elementor-grid-4,
+	.elementor-grid-5,
+	.elementor-grid-6 {
+		grid-template-columns: repeat(2, 1fr) !important;
+	}
+}
+
+/* Mobile: 1 column */
+@media (max-width: 768px) {
+	.elementor-loop-container,
+	.custom-product-loop-grid,
+	.elementor-widget-loop-grid .elementor-loop-container,
+	[data-widget_type="loop-grid.default"] .elementor-loop-container {
+		grid-template-columns: repeat(1, 1fr) !important;
+		grid-gap: 20px !important;
+		gap: 20px !important;
+	}
+
+	.elementor-grid-1,
+	.elementor-grid-2,
+	.elementor-grid-3,
+	.elementor-grid-4,
+	.elementor-grid-5,
+	.elementor-grid-6 {
+		grid-template-columns: repeat(1, 1fr) !important;
+	}
+}
+
+/* =============================================================================
+   ADDITIONAL FIXES
+   ============================================================================= */
+
+/* Remove any max-width constraints on grid */
+.elementor-loop-container,
+.custom-product-loop-grid {
+	max-width: none !important;
+}
+
+/* Ensure parent containers don't constrain the grid */
+.elementor-widget-loop-grid {
+	width: 100% !important;
+}
+
+.elementor-widget-loop-grid .elementor-widget-container {
+	width: 100% !important;
+}
+
+/* Fix for product cards */
+.product-card,
+.default-product-card {
+	width: 100% !important;
+	max-width: 100% !important;
+}
+
+/* Prevent any centering behavior */
+.elementor-loop-container {
+	text-align: left !important;
+	margin-left: 0 !important;
+	margin-right: 0 !important;
+}
+
+/* =============================================================================
+   DEBUG HELPER (Remove after fixing)
+   ============================================================================= */
+
+/* Uncomment this to see grid lines for debugging */
+/*
+.elementor-loop-container {
+	background-image:
+		repeating-linear-gradient(
+			0deg,
+			transparent,
+			transparent calc((100% - 90px) / 4),
+			rgba(255, 0, 0, 0.1) calc((100% - 90px) / 4),
+			rgba(255, 0, 0, 0.1) calc((100% - 90px) / 4 + 1px)
+		);
+}
+*/

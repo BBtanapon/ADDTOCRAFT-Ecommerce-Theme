@@ -1,7 +1,6 @@
 /**
- * Loop Grid Filter JavaScript - COMPLETE FIX
- * Properly filters Elementor Loop Grid with categories, attributes, and maintains styles
- * FIXES: No more duplicates on reset, proper grid clearing
+ * Loop Grid Filter - ULTIMATE DEDUPLICATION FIX
+ * Filters by Product ID FIRST - guarantees zero duplicates
  *
  * @package HelloElementorChild
  */
@@ -15,12 +14,15 @@
 			this.widgetId = this.widget.data("widget-id");
 			this.targetId = this.widget.data("target");
 			this.targetGrid = null;
-			this.targetContainer = null;
 			this.debounceTimer = null;
-			this.originalItems = [];
+
+			// Store UNIQUE products only - Map ensures uniqueness
+			this.uniqueProducts = new Map(); // productId => {element, data, index}
+
+			// Grid properties
 			this.gridClasses = "";
 			this.gridStyles = "";
-			this.gridDataAttributes = {};
+
 			this.currentFilters = {
 				search: "",
 				sort: "date",
@@ -35,57 +37,45 @@
 		}
 
 		init() {
-			console.log("🎯 Initializing Loop Grid Filter");
+			console.log(
+				"🎯 ULTIMATE FILTER: Initializing with Product ID deduplication",
+			);
 
 			this.findTargetGrid();
 
 			if (!this.targetGrid || !this.targetGrid.length) {
-				console.warn("⚠️ Target Loop Grid not found");
+				console.warn("⚠️ Target grid not found");
 				return;
 			}
 
-			console.log("✅ Target grid found:", this.targetGrid);
-
-			// Wait for auto-attributes to be ready
-			$(document).on("loop-grid-attributes-ready", () => {
-				console.log("🎨 Attributes ready, initializing filter");
-				this.storeGridProperties();
-				this.storeOriginalItems();
-				this.initPriceSliders();
-				this.bindEvents();
-				this.setupMobile();
-			});
-
-			// Fallback: Initialize after delay if event doesn't fire
-			setTimeout(() => {
-				if (this.originalItems.length === 0) {
-					console.log("⏰ Fallback initialization");
-					this.storeGridProperties();
-					this.storeOriginalItems();
+			// Wait for attributes
+			const initFilter = () => {
+				if (this.uniqueProducts.size === 0) {
+					console.log("📸 Capturing unique products");
+					this.captureUniqueProducts();
 					this.initPriceSliders();
 					this.bindEvents();
 					this.setupMobile();
 				}
-			}, 2000);
+			};
+
+			$(document).on("loop-grid-attributes-ready", initFilter);
+			setTimeout(initFilter, 2000);
 		}
 
 		findTargetGrid() {
 			if (this.targetId) {
-				let selectors = [
-					".elementor-element-" +
-						this.targetId +
-						" .elementor-loop-container",
-					'[data-id="' +
-						this.targetId +
-						'"] .elementor-loop-container',
-					"#" + this.targetId + " .elementor-loop-container",
-					"#" + this.targetId,
+				const selectors = [
+					`.elementor-element-${this.targetId} .elementor-loop-container`,
+					`[data-id="${this.targetId}"] .elementor-loop-container`,
+					`#${this.targetId} .elementor-loop-container`,
+					`#${this.targetId}`,
 				];
 
 				for (let selector of selectors) {
 					this.targetGrid = $(selector);
 					if (this.targetGrid.length) {
-						console.log("✅ Found grid with selector:", selector);
+						console.log("✅ Found grid:", selector);
 						break;
 					}
 				}
@@ -95,143 +85,166 @@
 				this.targetGrid = $(".elementor-loop-container").first();
 			}
 
-			if (this.targetGrid.hasClass("elementor-loop-container")) {
-				console.log("✅ Grid container found:", this.targetGrid);
-			} else {
+			if (!this.targetGrid.hasClass("elementor-loop-container")) {
 				const container = this.targetGrid
 					.find(".elementor-loop-container")
 					.first();
 				if (container.length) {
 					this.targetGrid = container;
-					console.log(
-						"✅ Grid container found (nested):",
-						this.targetGrid,
-					);
 				}
 			}
 		}
 
-		storeGridProperties() {
+		/**
+		 * CRITICAL: Capture UNIQUE products only - filter by Product ID FIRST
+		 */
+		captureUniqueProducts() {
+			// Store grid properties
 			this.gridClasses = this.targetGrid.attr("class") || "";
 			this.gridStyles = this.targetGrid.attr("style") || "";
 
-			this.gridDataAttributes = {};
-			if (this.targetGrid[0] && this.targetGrid[0].attributes) {
-				$.each(this.targetGrid[0].attributes, (i, attr) => {
-					if (attr.name.startsWith("data-")) {
-						this.gridDataAttributes[attr.name] = attr.value;
-					}
-				});
-			}
+			console.log("📦 Capturing products...");
 
-			console.log("📝 Stored grid properties:");
-			console.log("   Classes:", this.gridClasses);
-			console.log("   Styles:", this.gridStyles);
-		}
+			// Clear map
+			this.uniqueProducts.clear();
 
-		storeOriginalItems() {
-			this.originalItems = [];
+			// Find all potential product items
 			const items = this.targetGrid.find(
-				'.e-loop-item, [class*="elementor-post"], .product-loop-item',
+				'.e-loop-item, .product-loop-item, [class*="product-id-"]',
 			);
 
-			console.log(`📦 Found ${items.length} items to store`);
+			console.log(`   Found ${items.length} DOM elements`);
 
-			// Store unique items only (prevent duplicates from start)
-			const seenIds = new Set();
+			let skippedDuplicates = 0;
 
-			items.each((index, item) => {
-				const $item = $(item);
-				const product = this.extractProductData($item);
+			items.each((index, element) => {
+				const $element = $(element);
+				const productId = this.extractProductId($element);
 
-				// Skip if we've already stored this product
-				if (seenIds.has(product.id)) {
-					console.log(
-						`⚠️ Skipping duplicate product ID: ${product.id}`,
-					);
+				if (!productId) {
+					console.warn(`   ⚠️ Item ${index} has no product ID`);
 					return;
 				}
 
-				seenIds.add(product.id);
+				// CRITICAL: Skip if product ID already exists in Map
+				if (this.uniqueProducts.has(productId)) {
+					console.log(
+						`   🚫 Skipping duplicate product ID: ${productId} (item ${index})`,
+					);
+					skippedDuplicates++;
+					return;
+				}
 
-				// CRITICAL FIX: Store a DEEP clone
-				this.originalItems.push({
-					element: item.cloneNode(true), // Deep clone with all children
-					$element: $item,
-					data: product,
-					html: item.outerHTML,
-					index: index,
-					classes: item.className,
+				// Extract product data
+				const productData = this.extractProductData($element);
+
+				// Store in Map (Map automatically ensures uniqueness by key)
+				this.uniqueProducts.set(productId, {
+					id: productId,
+					element: element.cloneNode(true), // Deep clone
+					data: productData,
+					index: this.uniqueProducts.size, // Use Map size as index
 				});
+
+				console.log(
+					`   ✅ Stored product ${productId} (${productData.title || "No title"})`,
+				);
 			});
 
 			console.log(
-				"✅ Stored",
-				this.originalItems.length,
-				"unique original items",
+				`\n✅ Captured ${this.uniqueProducts.size} UNIQUE products`,
 			);
-
-			if (this.originalItems.length > 0) {
+			if (skippedDuplicates > 0) {
 				console.log(
-					"📋 Sample product data:",
-					this.originalItems[0].data,
+					`   🚫 Skipped ${skippedDuplicates} duplicate items`,
 				);
 			}
+
+			// Log all stored products
+			console.log("\n📋 Stored Product IDs:");
+			Array.from(this.uniqueProducts.keys()).forEach((id, i) => {
+				console.log(`   ${i + 1}. Product ID: ${id}`);
+			});
 		}
 
-		extractProductData($item) {
+		extractProductId($element) {
+			// Method 1: Data attributes
+			let id =
+				$element.data("product-id") || $element.attr("data-product-id");
+			if (id && id !== "{{ post.id }}") {
+				return String(id);
+			}
+
+			// Method 2: From classes
+			const classes = $element.attr("class") || "";
+			const patterns = [
+				/product-id-(\d+)/,
+				/e-loop-item-(\d+)/,
+				/post-(\d+)/,
+				/elementor-post-(\d+)/,
+			];
+
+			for (const pattern of patterns) {
+				const match = classes.match(pattern);
+				if (match) {
+					return String(match[1]);
+				}
+			}
+
+			return null;
+		}
+
+		extractProductData($element) {
 			const data = {
-				id: 0,
+				id: this.extractProductId($element),
 				title: "",
 				categories: [],
 				tags: [],
 				attributes: {},
 				price: 0,
-				regularPrice: 0,
-				salePrice: 0,
-				isVariable: false,
-				minPrice: 0,
 			};
 
-			// Get product ID
-			data.id =
-				$item.data("product-id") ||
-				$item.attr("data-product-id") ||
-				$item.data("productId") ||
-				this.extractIdFromClasses($item.attr("class")) ||
-				0;
-
-			console.log(`📦 Extracting data for product ID: ${data.id}`);
-
-			// Get title
-			const $title = $item
-				.find(".elementor-heading-title, h2, h3, h4, .product-title")
+			// Title - try multiple sources
+			const $title = $element
+				.find(
+					".elementor-heading-title, h2, h3, h4, .product-title, .woocommerce-loop-product__title",
+				)
 				.first();
 			if ($title.length) {
 				data.title = $title.text().trim().toLowerCase();
 			}
 
-			// Get categories - MUST be term IDs as strings
+			// Fallback to data attribute
+			if (!data.title) {
+				data.title = (
+					$element.data("title") ||
+					$element.attr("data-title") ||
+					""
+				).toLowerCase();
+			}
+
+			// Categories
 			const cats =
-				$item.data("categories") || $item.attr("data-categories");
+				$element.data("categories") || $element.attr("data-categories");
 			if (cats) {
 				data.categories = String(cats)
 					.split(",")
-					.map((c) => String(c.trim()));
-				console.log(`   Categories: ${data.categories.join(", ")}`);
+					.map((c) => c.trim())
+					.filter((c) => c);
 			}
 
-			// Get tags - MUST be term IDs as strings
-			const tags = $item.data("tags") || $item.attr("data-tags");
+			// Tags
+			const tags = $element.data("tags") || $element.attr("data-tags");
 			if (tags) {
 				data.tags = String(tags)
 					.split(",")
-					.map((t) => String(t.trim()));
-				console.log(`   Tags: ${data.tags.join(", ")}`);
+					.map((t) => t.trim())
+					.filter((t) => t);
 			}
 
-			// Get ALL WooCommerce attributes
-			$.each($item[0].dataset, (key, value) => {
+			// Attributes
+			const dataset = $element[0].dataset || {};
+			Object.keys(dataset).forEach((key) => {
 				if (
 					[
 						"productId",
@@ -249,8 +262,7 @@
 				}
 
 				let attrName = key;
-
-				// Convert camelCase back to snake_case
+				// Convert camelCase to snake_case for pa_ attributes
 				if (attrName.startsWith("pa") && attrName.length > 2) {
 					if (attrName[2] === attrName[2].toUpperCase()) {
 						attrName = attrName
@@ -259,68 +271,38 @@
 					}
 				}
 
+				const value = dataset[key];
 				if (value) {
 					data.attributes[attrName] = String(value)
 						.split(",")
-						.map((v) => v.trim().toLowerCase());
-					console.log(
-						`   Attribute ${attrName}: ${data.attributes[attrName].join(", ")}`,
-					);
+						.map((v) => v.trim().toLowerCase())
+						.filter((v) => v);
 				}
 			});
 
-			// Get price data
+			// Price
+			const price = parseFloat(
+				$element.data("price") || $element.attr("data-price") || 0,
+			);
 			const regularPrice = parseFloat(
-				$item.data("regular-price") ||
-					$item.attr("data-regular-price") ||
+				$element.data("regular-price") ||
+					$element.attr("data-regular-price") ||
 					0,
 			);
 			const salePrice = parseFloat(
-				$item.data("sale-price") || $item.attr("data-sale-price") || 0,
+				$element.data("sale-price") ||
+					$element.attr("data-sale-price") ||
+					0,
 			);
-			const displayPrice = parseFloat(
-				$item.data("price") || $item.attr("data-price") || 0,
-			);
-
-			data.regularPrice = regularPrice;
-			data.salePrice = salePrice;
-
-			if (salePrice > 0) {
-				data.price = salePrice;
-			} else if (regularPrice > 0) {
-				data.price = regularPrice;
-			} else {
-				data.price = displayPrice;
-			}
-
 			const minPrice = parseFloat(
-				$item.data("min-price") || $item.attr("data-min-price") || 0,
+				$element.data("min-price") ||
+					$element.attr("data-min-price") ||
+					0,
 			);
-			if (minPrice > 0) {
-				data.isVariable = true;
-				data.minPrice = minPrice;
-				data.price = minPrice;
-			}
 
-			console.log(`   Price: ${data.price}`);
+			data.price = price || salePrice || regularPrice || minPrice || 0;
 
 			return data;
-		}
-
-		extractIdFromClasses(classes) {
-			if (!classes) return 0;
-			const patterns = [
-				/e-loop-item-(\d+)/,
-				/post-(\d+)/,
-				/product-id-(\d+)/,
-				/elementor-post-(\d+)/,
-			];
-
-			for (let pattern of patterns) {
-				const match = classes.match(pattern);
-				if (match) return parseInt(match[1]);
-			}
-			return 0;
 		}
 
 		initPriceSliders() {
@@ -372,17 +354,20 @@
 		}
 
 		bindEvents() {
+			// Search
 			this.widget.find(".loop-filter-search").on(
 				"input",
 				this.debounce(() => {
 					this.currentFilters.search = this.widget
 						.find(".loop-filter-search")
 						.val()
-						.toLowerCase();
+						.toLowerCase()
+						.trim();
 					this.applyFilters();
 				}, 500),
 			);
 
+			// Sort
 			this.widget.find(".loop-filter-sort").on("change", () => {
 				this.currentFilters.sort = this.widget
 					.find(".loop-filter-sort")
@@ -390,21 +375,25 @@
 				this.applyFilters();
 			});
 
+			// Categories
 			this.widget.on("change", ".loop-filter-category", () => {
 				this.updateCheckboxArray("categories", ".loop-filter-category");
 				this.applyFilters();
 			});
 
+			// Tags
 			this.widget.on("change", ".loop-filter-tag", () => {
 				this.updateCheckboxArray("tags", ".loop-filter-tag");
 				this.applyFilters();
 			});
 
+			// Attributes
 			this.widget.on("change", ".loop-filter-custom-attribute", () => {
 				this.updateCustomAttributes();
 				this.applyFilters();
 			});
 
+			// Price
 			this.widget
 				.find(".loop-price-min-slider, .loop-price-max-slider")
 				.on("change", () => {
@@ -429,10 +418,12 @@
 				this.applyFilters();
 			});
 
+			// RESET - render all unique products
 			this.widget.find(".loop-filter-reset").on("click", () => {
-				this.resetFilters();
+				this.resetToUniqueProducts();
 			});
 
+			// Mobile
 			$(".filter-toggle-btn").on("click", (e) => {
 				e.preventDefault();
 				this.openMobileFilter();
@@ -452,8 +443,6 @@
 				values.push(String($(this).val()));
 			});
 			this.currentFilters[filterKey] = values;
-
-			console.log(`🔍 Updated ${filterKey}:`, values);
 		}
 
 		updateCustomAttributes() {
@@ -471,8 +460,6 @@
 					}
 				});
 			this.currentFilters.attributes = customAttrs;
-
-			console.log("🎨 Updated attributes:", customAttrs);
 		}
 
 		debounce(func, wait) {
@@ -485,180 +472,184 @@
 			};
 		}
 
+		/**
+		 * Apply filters - works with UNIQUE products from Map
+		 */
 		applyFilters() {
 			console.log("🔍 Applying filters:", this.currentFilters);
 
-			let visibleCount = 0;
-			let matchedItems = [];
+			const matchedProducts = [];
 
-			// Filter items
-			this.originalItems.forEach((item) => {
-				if (this.itemMatchesFilters(item.data)) {
-					matchedItems.push(item);
-					visibleCount++;
+			// Iterate through Map - guaranteed unique by product ID
+			this.uniqueProducts.forEach((product) => {
+				if (this.productMatchesFilters(product.data)) {
+					matchedProducts.push(product);
 				}
 			});
 
-			console.log(`✅ Found ${visibleCount} matching items`);
+			console.log(`✅ Matched ${matchedProducts.length} unique products`);
 
-			// Sort if needed
+			// Sort
 			if (this.currentFilters.sort !== "date") {
-				matchedItems = this.sortItems(matchedItems);
+				matchedProducts.sort((a, b) => {
+					switch (this.currentFilters.sort) {
+						case "title":
+							return (a.data.title || "").localeCompare(
+								b.data.title || "",
+							);
+						case "price":
+							return (a.data.price || 0) - (b.data.price || 0);
+						case "price-desc":
+							return (b.data.price || 0) - (a.data.price || 0);
+						default:
+							return a.index - b.index;
+					}
+				});
 			}
 
-			// Rebuild grid with filtered items
-			this.rebuildGrid(matchedItems);
-
-			// Show/hide no results message
-			this.toggleNoResultsMessage(visibleCount === 0);
+			// Rebuild with matched products
+			this.renderProducts(matchedProducts);
 		}
 
-		itemMatchesFilters(data) {
-			// Search filter
+		productMatchesFilters(data) {
+			// Search
 			if (this.currentFilters.search) {
-				if (!data.title.includes(this.currentFilters.search)) {
-					console.log(`   ❌ Search mismatch: "${data.title}"`);
+				if (
+					!data.title ||
+					!data.title.includes(this.currentFilters.search)
+				) {
 					return false;
 				}
 			}
 
-			// Categories filter
+			// Categories
 			if (this.currentFilters.categories.length > 0) {
 				const hasCategory = this.currentFilters.categories.some((cat) =>
-					data.categories.includes(String(cat)),
+					data.categories.includes(cat),
 				);
-				if (!hasCategory) {
-					console.log(
-						`   ❌ Category mismatch. Product cats: [${data.categories}], Filter cats: [${this.currentFilters.categories}]`,
-					);
-					return false;
-				}
+				if (!hasCategory) return false;
 			}
 
-			// Attributes filter
-			if (Object.keys(this.currentFilters.attributes).length > 0) {
-				for (const [filterAttrName, filterAttrValues] of Object.entries(
-					this.currentFilters.attributes,
-				)) {
-					if (
-						!data.attributes[filterAttrName] ||
-						data.attributes[filterAttrName].length === 0
-					) {
-						console.log(
-							`   ❌ Attribute "${filterAttrName}" not found in product`,
-						);
-						return false;
-					}
-
-					const hasMatch = filterAttrValues.some((filterValue) =>
-						data.attributes[filterAttrName].includes(
-							filterValue.toLowerCase(),
-						),
-					);
-
-					if (!hasMatch) {
-						console.log(
-							`   ❌ Attribute "${filterAttrName}" value mismatch. Product: [${data.attributes[filterAttrName]}], Filter: [${filterAttrValues}]`,
-						);
-						return false;
-					}
-				}
-			}
-
-			// Tags filter
+			// Tags
 			if (this.currentFilters.tags.length > 0) {
 				const hasTag = this.currentFilters.tags.some((tag) =>
-					data.tags.includes(String(tag)),
+					data.tags.includes(tag),
 				);
-				if (!hasTag) {
-					console.log(`   ❌ Tag mismatch`);
-					return false;
-				}
+				if (!hasTag) return false;
 			}
 
-			// Price filter
-			if (data.price) {
+			// Attributes
+			for (const [attrName, attrValues] of Object.entries(
+				this.currentFilters.attributes,
+			)) {
+				if (
+					!data.attributes[attrName] ||
+					data.attributes[attrName].length === 0
+				) {
+					return false;
+				}
+
+				const hasMatch = attrValues.some((filterValue) =>
+					data.attributes[attrName].includes(filterValue),
+				);
+
+				if (!hasMatch) return false;
+			}
+
+			// Price
+			if (data.price > 0) {
 				if (
 					data.price < this.currentFilters.minPrice ||
 					data.price > this.currentFilters.maxPrice
 				) {
-					console.log(`   ❌ Price mismatch: ${data.price}`);
 					return false;
 				}
 			}
 
-			console.log(`   ✅ Product ${data.id} matches all filters`);
 			return true;
 		}
 
-		sortItems(items) {
-			const sortType = this.currentFilters.sort;
-			const itemsToSort = [...items];
+		/**
+		 * Render products to grid - GUARANTEED UNIQUE
+		 */
+		renderProducts(products) {
+			console.log(`🔨 Rendering ${products.length} UNIQUE products`);
 
-			itemsToSort.sort((a, b) => {
-				switch (sortType) {
-					case "title":
-						return (a.data.title || "").localeCompare(
-							b.data.title || "",
-						);
-					case "price":
-						return (a.data.price || 0) - (b.data.price || 0);
-					case "price-desc":
-						return (b.data.price || 0) - (a.data.price || 0);
-					case "date":
-					default:
-						return a.index - b.index;
-				}
-			});
+			const container = this.targetGrid[0];
 
-			return itemsToSort;
-		}
-
-		rebuildGrid(items) {
-			console.log("🔨 Rebuilding grid with", items.length, "items");
-
-			// CRITICAL FIX: Store reference to grid container
-			const gridContainer = this.targetGrid[0];
-
-			// Clear grid completely - remove ALL children
-			while (gridContainer.firstChild) {
-				gridContainer.removeChild(gridContainer.firstChild);
-			}
+			// Clear grid
+			container.innerHTML = "";
 
 			// Restore grid properties
 			this.targetGrid.attr("class", this.gridClasses);
 			if (this.gridStyles) {
 				this.targetGrid.attr("style", this.gridStyles);
 			}
-			$.each(this.gridDataAttributes, (key, value) => {
-				this.targetGrid.attr(key, value);
-			});
 
-			// CRITICAL FIX: Ensure grid alignment is correct
-			// Force grid items to align at start, not center
+			// CRITICAL: Force 4-column grid layout with inline styles
 			this.targetGrid.css({
-				"justify-items": "stretch",
-				"align-items": "start",
-				"justify-content": "start",
-				"align-content": "start",
+				display: "grid !important",
+				"grid-template-columns": "repeat(4, 1fr) !important",
+				gap: "30px !important",
+				width: "100% !important",
+				"justify-items": "stretch !important",
+				"align-items": "start !important",
+				"justify-content": "start !important",
+				"align-content": "start !important",
 			});
 
-			// Add filtered items - use cloned elements
-			items.forEach((item) => {
-				// Clone the element properly with all children
-				const clonedNode = item.element.cloneNode(true);
-				gridContainer.appendChild(clonedNode);
+			// Add inline style attribute to force it
+			const inlineStyle = `
+				display: grid !important;
+				grid-template-columns: repeat(4, 1fr) !important;
+				gap: 30px !important;
+				width: 100% !important;
+				justify-items: stretch !important;
+				align-items: start !important;
+				justify-content: start !important;
+				align-content: start !important;
+			`;
+			this.targetGrid.attr("style", inlineStyle);
+
+			// CRITICAL: Track rendered IDs to prevent any duplicates
+			const renderedIds = new Set();
+
+			// Add products
+			products.forEach((product) => {
+				// Double-check: Skip if already rendered
+				if (renderedIds.has(product.id)) {
+					console.warn(
+						`⚠️ Prevented duplicate render of product ${product.id}`,
+					);
+					return;
+				}
+
+				// Create fresh clone
+				const freshClone = product.element.cloneNode(true);
+				container.appendChild(freshClone);
+
+				// Mark as rendered
+				renderedIds.add(product.id);
 			});
 
-			// Animate items
+			console.log(
+				`   ✅ Rendered ${renderedIds.size} unique products to DOM`,
+			);
+
+			// Animate
 			this.animateItems();
 
-			console.log("✅ Grid rebuilt successfully");
+			// Show/hide no results
+			if (products.length === 0) {
+				this.showNoResults();
+			} else {
+				this.hideNoResults();
+			}
 		}
 
 		animateItems() {
 			this.targetGrid
-				.find('.e-loop-item, [class*="elementor-post"]')
+				.find(".e-loop-item, .product-loop-item")
 				.css({
 					opacity: 0,
 					transform: "translateY(20px)",
@@ -666,45 +657,37 @@
 				.each(function (index) {
 					$(this)
 						.delay(index * 50)
-						.animate(
-							{
-								opacity: 1,
-							},
-							300,
-							function () {
-								$(this).css("transform", "translateY(0)");
-							},
-						);
+						.animate({ opacity: 1 }, 300, function () {
+							$(this).css("transform", "translateY(0)");
+						});
 				});
 		}
 
-		toggleNoResultsMessage(show) {
-			let $noResults = this.targetGrid.find(".no-results-message");
-
-			if (show) {
-				if ($noResults.length === 0) {
-					$noResults = $(
-						'<div class="no-results-message" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; font-size: 16px; color: #666;">No products found matching your criteria.</div>',
-					);
-					this.targetGrid.append($noResults);
-				}
-				$noResults.fadeIn(300);
-			} else {
-				$noResults.fadeOut(300, function () {
-					$(this).remove();
-				});
+		showNoResults() {
+			if (this.targetGrid.find(".no-results-message").length === 0) {
+				const msg = $(
+					'<div class="no-results-message" style="grid-column: 1/-1; text-align: center; padding: 60px 20px; font-size: 16px; color: #666;">No products found matching your criteria.</div>',
+				);
+				this.targetGrid.append(msg);
 			}
 		}
 
-		resetFilters() {
-			console.log("🔄 Resetting filters");
+		hideNoResults() {
+			this.targetGrid.find(".no-results-message").remove();
+		}
 
-			// Clear all form inputs
+		/**
+		 * RESET: Show ALL unique products (from Map)
+		 */
+		resetToUniqueProducts() {
+			console.log("🔄 RESET: Showing all unique products");
+
+			// Clear form
 			this.widget.find(".loop-filter-search").val("");
 			this.widget.find(".loop-filter-sort").val("date");
 			this.widget.find('input[type="checkbox"]').prop("checked", false);
 
-			// Reset price sliders
+			// Reset price
 			const maxPrice =
 				parseInt(
 					this.widget.find(".loop-price-max-slider").attr("max"),
@@ -713,7 +696,7 @@
 			this.widget.find(".loop-price-max-slider").val(maxPrice);
 			this.updatePriceDisplay();
 
-			// Reset filter state
+			// Reset state
 			this.currentFilters = {
 				search: "",
 				sort: "date",
@@ -724,11 +707,19 @@
 				maxPrice: maxPrice,
 			};
 
-			// CRITICAL FIX: Rebuild with original items (in original order)
-			this.rebuildGrid(this.originalItems);
+			// Render ALL unique products from Map
+			const allUniqueProducts = Array.from(this.uniqueProducts.values());
 
-			// Hide no results message if visible
-			this.toggleNoResultsMessage(false);
+			// Sort by original index
+			allUniqueProducts.sort((a, b) => a.index - b.index);
+
+			console.log(
+				`   📦 Resetting to ${allUniqueProducts.length} unique products`,
+			);
+
+			this.renderProducts(allUniqueProducts);
+
+			console.log("✅ Reset complete - showing all unique products");
 		}
 
 		setupMobile() {
@@ -760,7 +751,7 @@
 		}
 	}
 
-	// Initialize on Elementor frontend init
+	// Initialize
 	$(window).on("elementor/frontend/init", function () {
 		elementorFrontend.hooks.addAction(
 			"frontend/element_ready/loop_grid_filter.default",
@@ -779,7 +770,6 @@
 		}, 1000);
 	});
 
-	// Also initialize on document ready as fallback
 	$(document).ready(function () {
 		setTimeout(function () {
 			$(".loop-grid-filter-widget").each(function () {
@@ -791,33 +781,3 @@
 		}, 500);
 	});
 })(jQuery);
-
-/* Additional CSS to prevent grid centering */
-if (typeof document !== "undefined") {
-	const style = document.createElement("style");
-	style.textContent = `
-		/* Force grid alignment to start */
-		.elementor-loop-container,
-		.custom-product-loop-grid {
-			justify-items: stretch !important;
-			align-items: start !important;
-			justify-content: start !important;
-			align-content: start !important;
-		}
-
-		/* Ensure grid items take full width */
-		.e-loop-item,
-		.product-loop-item {
-			width: 100% !important;
-			max-width: 100% !important;
-		}
-
-		/* Prevent grid items from centering */
-		.elementor-loop-container > *,
-		.custom-product-loop-grid > * {
-			justify-self: stretch !important;
-			align-self: start !important;
-		}
-	`;
-	document.head.appendChild(style);
-}
