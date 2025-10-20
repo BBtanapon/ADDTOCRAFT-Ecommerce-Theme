@@ -1,30 +1,40 @@
 <?php
 /**
- * Custom Query Sources for Elementor Loop Grid
+ * Custom Query Sources for Elementor Loop Grid - FIXED
+ * No output echoing, clean code
  *
  * @package HelloElementorChild
  */
 
 if (!defined("ABSPATH")) {
-	exit();
+	exit(); // Prevent direct access
 }
 
 class Custom_Elementor_Loop_Query_Sources
 {
 	public function __construct()
 	{
-		// Register custom query sources
+		// Hook into Loop Grid widget registration
+		add_action("elementor/widgets/register", [$this, "init_hooks"]);
+	}
+
+	/**
+	 * Initialize hooks after widgets are registered
+	 */
+	public function init_hooks()
+	{
+		// Add custom controls to Loop Grid
 		add_action(
-			"elementor/query/query_results",
-			[$this, "modify_query_results"],
+			"elementor/element/loop-grid/section_query/before_section_end",
+			[$this, "add_query_id_control"],
 			10,
 			2,
 		);
 
-		// Add custom query ID to loop grid
+		// Modify query results
 		add_action(
-			"elementor/element/loop-grid/section_query/after_section_start",
-			[$this, "add_query_id_control"],
+			"elementor/query/query_results",
+			[$this, "modify_query_results"],
 			10,
 			2,
 		);
@@ -35,6 +45,15 @@ class Custom_Elementor_Loop_Query_Sources
 	 */
 	public function add_query_id_control($element, $args)
 	{
+		$element->add_control("custom_query_divider", [
+			"type" => \Elementor\Controls_Manager::DIVIDER,
+		]);
+
+		$element->add_control("custom_query_heading", [
+			"label" => __("🎯 Custom Product Queries", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::HEADING,
+		]);
+
 		$element->add_control("query_id_custom", [
 			"label" => __("Custom Query", "hello-elementor-child"),
 			"type" => \Elementor\Controls_Manager::SELECT,
@@ -152,6 +171,9 @@ class Custom_Elementor_Loop_Query_Sources
 
 		// Exclude out of stock
 		if ($exclude_out_of_stock) {
+			if (!isset($args["meta_query"])) {
+				$args["meta_query"] = [];
+			}
 			$args["meta_query"][] = [
 				"key" => "_stock_status",
 				"value" => "instock",
@@ -195,7 +217,7 @@ class Custom_Elementor_Loop_Query_Sources
 		// Create new WP_Query
 		$new_query = new \WP_Query($args);
 
-		// Replace the query
+		// Replace the query properties
 		$query->query = $new_query->query;
 		$query->query_vars = $new_query->query_vars;
 		$query->posts = $new_query->posts;
@@ -219,7 +241,9 @@ class Custom_Elementor_Loop_Query_Sources
 				"7_days" => 7,
 				"30_days" => 30,
 			];
-			$days = $days_map[$time_period];
+			$days = isset($days_map[$time_period])
+				? $days_map[$time_period]
+				: 30;
 
 			$args["date_query"] = [
 				[
@@ -245,22 +269,22 @@ class Custom_Elementor_Loop_Query_Sources
 			"7_days" => 7,
 			"30_days" => 30,
 		];
-		$days = $days_map[$time_period];
+		$days = isset($days_map[$time_period]) ? $days_map[$time_period] : 30;
 		$date_filter = date("Y-m-d H:i:s", strtotime("-{$days} days"));
 
 		// Get best selling product IDs
 		$product_ids = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT p.ID
-            FROM {$wpdb->posts} p
-            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-            WHERE p.post_type = 'product'
-            AND p.post_status = 'publish'
-            AND p.post_date >= %s
-            AND pm.meta_key = 'total_sales'
-            AND pm.meta_value > 0
-            ORDER BY CAST(pm.meta_value AS UNSIGNED) DESC
-            LIMIT %d",
+				FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+				WHERE p.post_type = 'product'
+				AND p.post_status = 'publish'
+				AND p.post_date >= %s
+				AND pm.meta_key = 'total_sales'
+				AND pm.meta_value > 0
+				ORDER BY CAST(pm.meta_value AS UNSIGNED) DESC
+				LIMIT %d",
 				$date_filter,
 				$args["posts_per_page"],
 			),
@@ -325,6 +349,10 @@ class Custom_Elementor_Loop_Query_Sources
 		$args["order"] = "DESC";
 		$args["meta_key"] = "_wc_average_rating";
 
+		if (!isset($args["meta_query"])) {
+			$args["meta_query"] = [];
+		}
+
 		$args["meta_query"][] = [
 			"key" => "_wc_average_rating",
 			"value" => 0,
@@ -355,6 +383,10 @@ class Custom_Elementor_Loop_Query_Sources
 		$args["order"] = "ASC";
 		$args["meta_key"] = "_stock";
 
+		if (!isset($args["meta_query"])) {
+			$args["meta_query"] = [];
+		}
+
 		$args["meta_query"][] = [
 			"key" => "_stock",
 			"value" => $threshold,
@@ -372,3 +404,5 @@ class Custom_Elementor_Loop_Query_Sources
 		return $args;
 	}
 }
+
+// NO OUTPUT AFTER THIS LINE - CRITICAL!

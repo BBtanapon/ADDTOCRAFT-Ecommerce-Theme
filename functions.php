@@ -1,7 +1,7 @@
 <?php
 /**
  * Theme functions and definitions - COMPLETE FIX
- * OPTIMIZED: Only loads necessary product data, prevents redundancy
+ * CSS Output Issue Resolved
  *
  * @package HelloElementorChild
  */
@@ -10,7 +10,7 @@ if (!defined("ABSPATH")) {
 	exit();
 }
 
-define("HELLO_ELEMENTOR_CHILD_VERSION", "2.1.0");
+define("HELLO_ELEMENTOR_CHILD_VERSION", "2.1.1");
 
 // =============================================================================
 // CORE THEME SETUP
@@ -36,58 +36,8 @@ function load_dashicons_for_non_logged_in_users()
 }
 
 // =============================================================================
-// ELEMENTOR CSS PRINTING FIX - CRITICAL
+// ELEMENTOR CSS - SIMPLIFIED (Let Elementor Handle It)
 // =============================================================================
-
-/**
- * Force print Elementor template CSS inline
- */
-add_action("wp_head", "force_print_elementor_loop_css", 999);
-function force_print_elementor_loop_css()
-{
-	if (!class_exists("\Elementor\Plugin")) {
-		return;
-	}
-
-	global $post;
-
-	if (!$post) {
-		return;
-	}
-
-	// Get Elementor data
-	$document = \Elementor\Plugin::$instance->documents->get($post->ID);
-
-	if (!$document) {
-		return;
-	}
-
-	$data = $document->get_elements_data();
-
-	if (empty($data)) {
-		return;
-	}
-
-	// Find all loop grids and their templates
-	$template_ids = [];
-	array_walk_recursive($data, function ($value, $key) use (&$template_ids) {
-		if ($key === "template_id" && !empty($value)) {
-			$template_ids[] = $value;
-		}
-	});
-
-	// Print CSS for each template
-	foreach (array_unique($template_ids) as $template_id) {
-		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
-
-		if ($css_file) {
-			echo "\n<!-- Loop Template CSS: {$template_id} -->\n";
-			echo '<style id="elementor-post-' . esc_attr($template_id) . '">';
-			echo $css_file->get_content();
-			echo "</style>" . "\n";
-		}
-	}
-}
 
 /**
  * Ensure CSS files are generated
@@ -104,21 +54,26 @@ function ensure_css_file_generated($css_file)
 add_action("elementor/editor/after_save", "force_css_regeneration", 10, 2);
 function force_css_regeneration($post_id, $editor_data)
 {
+	if (!class_exists("\Elementor\Core\Files\CSS\Post")) {
+		return;
+	}
+
 	$css_file = \Elementor\Core\Files\CSS\Post::create($post_id);
-	$css_file->update();
+	if ($css_file) {
+		$css_file->update();
+	}
 }
 
 /**
- * Clear and regenerate all CSS
+ * Clear and regenerate all CSS (one-time on theme update)
  */
 add_action("init", "maybe_regenerate_all_elementor_css");
 function maybe_regenerate_all_elementor_css()
 {
-	// Change version to force regeneration
-	if (!get_option("elementor_css_regenerated_v4")) {
+	if (!get_option("elementor_css_regenerated_v5")) {
 		if (class_exists("\Elementor\Plugin")) {
 			\Elementor\Plugin::$instance->files_manager->clear_cache();
-			update_option("elementor_css_regenerated_v4", true);
+			update_option("elementor_css_regenerated_v5", true);
 		}
 	}
 }
@@ -268,7 +223,6 @@ function output_products_data_json()
 		return;
 	}
 
-	// OPTIMIZATION: Only load products that might be displayed on this page
 	global $post;
 
 	$products_data = [];
@@ -289,11 +243,6 @@ function output_products_data_json()
 		$tag = get_queried_object();
 		$args["tag"] = [$tag->slug];
 	}
-	// If on shop page, load all (but could be limited further)
-	elseif (is_shop()) {
-		// Could add pagination limits here if needed
-		// $args['limit'] = 100; // Limit to first 100 for performance
-	}
 
 	$products = wc_get_products($args);
 
@@ -308,15 +257,13 @@ function output_products_data_json()
 		return;
 	}
 	?>
-    <script id="loop-grid-products-data" type="application/json">
-        <?php echo wp_json_encode($products_data); ?>
-    </script>
-    <script>
-        window.loopGridProductsData = <?php echo wp_json_encode(
-        	$products_data,
-        ); ?>;
-        console.log('%c📦 Products data loaded:', 'color: #4CAF50; font-weight: bold;', Object.keys(window.loopGridProductsData).length + ' products');
-    </script>
+<script id="loop-grid-products-data" type="application/json">
+<?php echo wp_json_encode($products_data); ?>
+</script>
+<script>
+window.loopGridProductsData = <?php echo wp_json_encode($products_data); ?>;
+console.log('%c📦 Products data loaded:', 'color: #4CAF50; font-weight: bold;', Object.keys(window.loopGridProductsData).length + ' products');
+</script>
 <?php
 }
 
@@ -375,6 +322,15 @@ function enqueue_all_filter_assets()
 	wp_enqueue_script(
 		"custom-loop-grid-pagination",
 		get_stylesheet_directory_uri() . "/assets/js/loop-grid-pagination.js",
+		["jquery", "elementor-frontend"],
+		HELLO_ELEMENTOR_CHILD_VERSION,
+		true,
+	);
+
+	// Loop Grid Layout Fix
+	wp_enqueue_script(
+		"fix-loop-grid-layout",
+		get_stylesheet_directory_uri() . "/assets/js/fix-loop-grid-layout.js",
 		["jquery", "elementor-frontend"],
 		HELLO_ELEMENTOR_CHILD_VERSION,
 		true,
@@ -514,24 +470,23 @@ function ajax_load_more_products()
 			);
 		}
 		?>
-        <article class="e-loop-item product-loop-item product-id-<?php echo esc_attr(
-        	$product->get_id(),
-        ); ?>" <?php echo $data_attrs; ?>>
-            <?php // Render template or default card
-            if (
-            	!empty($settings["use_custom_template"]) &&
-            	$settings["use_custom_template"] === "yes" &&
-            	!empty($settings["template_id"])
-            ) {
-            	echo \Elementor\Plugin::instance()->frontend->get_builder_content(
-            		$settings["template_id"],
-            		true,
-            	);
-            } else {
-            	render_default_product_card_ajax($product);
-            } ?>
-        </article>
-        <?php
+<article class="e-loop-item product-loop-item product-id-<?php echo esc_attr(
+	$product->get_id(),
+); ?>" <?php echo $data_attrs; ?>>
+	<?php if (
+ 	!empty($settings["use_custom_template"]) &&
+ 	$settings["use_custom_template"] === "yes" &&
+ 	!empty($settings["template_id"])
+ ) {
+ 	echo \Elementor\Plugin::instance()->frontend->get_builder_content(
+ 		$settings["template_id"],
+ 		true,
+ 	);
+ } else {
+ 	render_default_product_card_ajax($product);
+ } ?>
+</article>
+<?php
 	}
 
 	wp_reset_postdata();
@@ -551,52 +506,43 @@ function render_default_product_card_ajax($product)
 	$tags = get_the_terms($product->get_id(), "product_tag");
 	$main_tag = $tags && !is_wp_error($tags) ? $tags[0]->name : "";
 	?>
-    <div class="default-product-card">
-        <div class="product-badges">
-            <?php if ($is_on_sale): ?>
-                <span class="badge-sale"><?php _e(
-                	"Sale!",
-                	"hello-elementor-child",
-                ); ?></span>
-            <?php endif; ?>
-            <?php if ($main_tag): ?>
-                <span class="badge-tag"><?php echo esc_html(
-                	$main_tag,
-                ); ?></span>
-            <?php endif; ?>
-        </div>
+<div class="default-product-card">
+	<div class="product-badges">
+		<?php if ($is_on_sale): ?>
+		<span class="badge-sale"><?php _e("Sale!", "hello-elementor-child"); ?></span>
+		<?php endif; ?>
+		<?php if ($main_tag): ?>
+		<span class="badge-tag"><?php echo esc_html($main_tag); ?></span>
+		<?php endif; ?>
+	</div>
 
-        <a href="<?php echo esc_url(
-        	get_permalink(),
-        ); ?>" class="product-image-link">
-            <?php echo $product->get_image("woocommerce_thumbnail"); ?>
-        </a>
+	<a href="<?php echo esc_url(get_permalink()); ?>" class="product-image-link">
+		<?php echo $product->get_image("woocommerce_thumbnail"); ?>
+	</a>
 
-        <div class="product-info">
-            <h3 class="product-title">
-                <a href="<?php echo esc_url(get_permalink()); ?>">
-                    <?php echo esc_html($product->get_name()); ?>
-                </a>
-            </h3>
+	<div class="product-info">
+		<h3 class="product-title">
+			<a href="<?php echo esc_url(get_permalink()); ?>">
+				<?php echo esc_html($product->get_name()); ?>
+			</a>
+		</h3>
 
-            <div class="product-price">
-                <?php echo $product->get_price_html(); ?>
-            </div>
+		<div class="product-price">
+			<?php echo $product->get_price_html(); ?>
+		</div>
 
-            <div class="product-actions">
-                <?php if ($product->is_type("variable")): ?>
-                    <a href="<?php echo esc_url(
-                    	get_permalink(),
-                    ); ?>" class="btn-select-options">
-                        <?php _e("SELECT OPTIONS", "hello-elementor-child"); ?>
-                    </a>
-                <?php else: ?>
-                    <?php woocommerce_template_loop_add_to_cart(); ?>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-    <?php
+		<div class="product-actions">
+			<?php if ($product->is_type("variable")): ?>
+			<a href="<?php echo esc_url(get_permalink()); ?>" class="btn-select-options">
+				<?php _e("SELECT OPTIONS", "hello-elementor-child"); ?>
+			</a>
+			<?php else: ?>
+			<?php woocommerce_template_loop_add_to_cart(); ?>
+			<?php endif; ?>
+		</div>
+	</div>
+</div>
+<?php
 }
 
 // =============================================================================
@@ -722,4 +668,15 @@ function create_elementor_widgets_directory()
 	if (!file_exists($widgets_dir)) {
 		wp_mkdir_p($widgets_dir);
 	}
+}
+
+// =============================================================================
+// CUSTOM LOOP QUERIES
+// =============================================================================
+
+$loop_queries_file =
+	get_stylesheet_directory() . "/includes/class-elementor-loop-queries.php";
+if (file_exists($loop_queries_file)) {
+	require_once $loop_queries_file;
+	new Custom_Elementor_Loop_Query_Sources();
 }
