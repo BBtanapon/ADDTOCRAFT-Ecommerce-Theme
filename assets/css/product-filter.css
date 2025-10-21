@@ -3413,3 +3413,24 @@ select.loop-filter-sort {
 		padding: 10px !important;
 	}
 }
+/* CRITICAL: Force remove inline styles */
+.loop-filter-sidebar,
+.filter-sidebar {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+@media (max-width: 1024px) {
+    .loop-filter-sidebar,
+    .filter-sidebar {
+        position: fixed !important;
+        left: -100% !important;
+        display: block !important;
+    }
+
+    .loop-filter-sidebar.active,
+    .filter-sidebar.active {
+        left: 0 !important;
+    }
+}

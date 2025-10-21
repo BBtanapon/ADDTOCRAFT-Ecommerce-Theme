@@ -1014,110 +1014,97 @@
 	});
 })(jQuery);
 /**
- * MOBILE FILTER TOGGLE - COMPLETE FIX v2
- * Removes inline display:none and uses CSS class instead
- * Add this to the VERY END of your loop-grid-filter.js file
+ * MOBILE FILTER TOGGLE - COMPLETE FIX v3
+ * Removes inline display:none and uses CSS classes only
+ * Add this to the END of your loop-grid-filter.js file
  */
 
-// ========== MOBILE FILTER TOGGLE ==========
-
 function initMobileFilterToggle() {
-	console.log("🎯 Initializing mobile filter toggle");
+	console.log("🎯 Initializing mobile filter toggle - FINAL FIX");
 
-	// Get sidebar
 	const $sidebar = $(".filter-sidebar, .loop-filter-sidebar");
+	const $toggleBtn = $(".filter-toggle-btn");
+	const $overlay = $(".filter-overlay");
+	const $closeBtn = $(".filter-close-btn");
 
-	// CRITICAL: Remove inline style that blocks toggle
+	// ===== CRITICAL: REMOVE ALL INLINE STYLES =====
 	$sidebar.each(function () {
+		// Remove the problematic inline style
+		$(this).css({
+			display: "",
+			visibility: "",
+			opacity: "",
+			left: "",
+			top: "",
+			position: "",
+			transform: "",
+		});
 		$(this).removeAttr("style");
+		console.log("✅ Removed inline styles from sidebar");
 	});
 
-	console.log("✅ Removed inline display styles");
+	// ===== ENSURE SIDEBAR IS NOT HIDDEN BY DEFAULT =====
+	// The CSS should control this, not inline styles
+	$sidebar.removeClass("hidden-by-inline");
 
-	// Get or create toggle button
-	if ($(".filter-toggle-btn").length === 0) {
-		$("body").append(
-			'<button class="filter-toggle-btn" aria-label="Open Filters">' +
-				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
-				'<path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>' +
-				"</svg></button>",
-		);
-	}
+	// ===== CLEAN UP OLD EVENT LISTENERS =====
+	$(document).off("click.filter-toggle");
+	$(document).off("click.filter-close");
+	$(document).off("click.filter-overlay");
+	$sidebar.off("click.filter-sidebar");
 
-	// Get or create overlay
-	if ($(".filter-overlay").length === 0) {
-		$("body").append('<div class="filter-overlay"></div>');
-	}
-
-	// Remove old listeners to prevent duplicates
-	$(document).off("click", ".filter-toggle-btn");
-	$(document).off("click", ".filter-close-btn");
-	$(document).off("click", ".filter-overlay");
-	$(document).off("click", ".filter-sidebar, .loop-filter-sidebar");
-
-	// ===== OPEN FILTER =====
-	$(document).on("click", ".filter-toggle-btn", function (e) {
+	// ===== OPEN FILTER (Toggle Button Click) =====
+	$(document).on("click.filter-toggle", ".filter-toggle-btn", function (e) {
 		e.preventDefault();
 		e.stopPropagation();
 
-		console.log("📱 Opening filter sidebar");
+		console.log("📱 Toggle button clicked - Opening filter");
 
-		// Remove inline styles
-		$(".filter-sidebar, .loop-filter-sidebar").removeAttr("style");
+		// Ensure no inline styles block the opening
+		$sidebar.removeAttr("style");
 
-		// Add active class
-		$(".filter-sidebar, .loop-filter-sidebar").addClass("active");
-		$(".filter-overlay").addClass("active");
+		// Add active class (CSS handles the rest)
+		$sidebar.addClass("active");
+		$overlay.addClass("active");
 
-		// Prevent scroll
+		// Prevent body scroll
 		$("body").css("overflow", "hidden");
 
-		console.log(
-			"✅ Sidebar opened - active class:",
-			$(".filter-sidebar, .loop-filter-sidebar").hasClass("active"),
-		);
+		console.log("✅ Sidebar active class added");
 	});
 
-	// ===== CLOSE FILTER (Close Button) =====
-	$(document).on("click", ".filter-close-btn", function (e) {
+	// ===== CLOSE FILTER (Close Button Click) =====
+	$(document).on("click.filter-close", ".filter-close-btn", function (e) {
 		e.preventDefault();
 		e.stopPropagation();
 
-		console.log("📱 Closing filter sidebar");
+		console.log("🔐 Close button clicked - Closing filter");
 
 		// Remove active class
-		$(".filter-sidebar, .loop-filter-sidebar").removeClass("active");
-		$(".filter-overlay").removeClass("active");
+		$sidebar.removeClass("active");
+		$overlay.removeClass("active");
 
-		// Restore scroll
+		// Restore body scroll
 		$("body").css("overflow", "");
 
-		console.log(
-			"✅ Sidebar closed - active class:",
-			$(".filter-sidebar, .loop-filter-sidebar").hasClass("active"),
-		);
+		console.log("✅ Sidebar active class removed");
 	});
 
 	// ===== CLOSE FILTER (Overlay Click) =====
-	$(document).on("click", ".filter-overlay", function (e) {
+	$(document).on("click.filter-overlay", ".filter-overlay", function (e) {
 		e.preventDefault();
 		e.stopPropagation();
 
-		console.log("📱 Overlay clicked - closing sidebar");
+		console.log("📱 Overlay clicked - Closing filter");
 
-		// Remove active class
-		$(".filter-sidebar, .loop-filter-sidebar").removeClass("active");
-		$(".filter-overlay").removeClass("active");
-
-		// Restore scroll
+		$sidebar.removeClass("active");
+		$overlay.removeClass("active");
 		$("body").css("overflow", "");
-
-		console.log("✅ Sidebar closed via overlay");
 	});
 
 	// ===== PREVENT SIDEBAR CONTENT FROM CLOSING =====
 	$(document).on(
-		"click",
+		"click.filter-sidebar",
 		".filter-sidebar, .loop-filter-sidebar",
 		function (e) {
 			e.stopPropagation();
@@ -1127,30 +1114,29 @@ function initMobileFilterToggle() {
 	// ===== CLOSE SIDEBAR ON DESKTOP RESIZE =====
 	$(window).on("resize", function () {
 		if (window.innerWidth > 1024) {
-			$(".filter-sidebar, .loop-filter-sidebar").removeClass("active");
-			$(".filter-overlay").removeClass("active");
+			console.log("📐 Resized to desktop - closing sidebar");
+			$sidebar.removeClass("active");
+			$overlay.removeClass("active");
 			$("body").css("overflow", "");
-
-			console.log("📱 Window resized to desktop - sidebar closed");
 		}
 	});
 
-	console.log("✅ Mobile filter toggle fully initialized");
+	console.log("✅ Mobile filter toggle fully initialized - NO INLINE STYLES");
 }
 
 // ===== INIT ON DOCUMENT READY =====
 $(document).ready(function () {
-	setTimeout(initMobileFilterToggle, 1000);
+	setTimeout(initMobileFilterToggle, 500); // Reduced from 1000ms
 });
 
 // ===== RE-INIT ON ELEMENTOR FRONTEND =====
 $(window).on("elementor/frontend/init", function () {
-	setTimeout(initMobileFilterToggle, 1500);
+	setTimeout(initMobileFilterToggle, 1000);
 });
 
 // ===== RE-INIT ON AJAX COMPLETE =====
 $(document).on("ajaxComplete", function () {
-	setTimeout(initMobileFilterToggle, 500);
+	setTimeout(initMobileFilterToggle, 300);
 });
 
 // ===== MUTATION OBSERVER FOR DYNAMIC CONTENT =====
@@ -1165,7 +1151,7 @@ if (typeof MutationObserver !== "undefined") {
 				).length
 			) {
 				console.log("🔄 New sidebar detected - reinitializing");
-				setTimeout(initMobileFilterToggle, 500);
+				setTimeout(initMobileFilterToggle, 300);
 			}
 		});
 	});

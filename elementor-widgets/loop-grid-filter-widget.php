@@ -1,8 +1,7 @@
 <?php
 /**
- * Enhanced Elementor Loop Grid Filter Widget - WITH FULL CUSTOMIZATION
- * Modified version - Add to existing loop-grid-filter-widget.php
- * Just replace the register_controls() and render() methods
+ * Enhanced Elementor Loop Grid Filter Widget - FIXED
+ * NO inline styles - CSS classes handle all styling
  *
  * @package HelloElementorChild
  */
@@ -533,7 +532,7 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 				cursor: pointer;
 				z-index: 10;
 				transition: all 0.2s ease;
-				display: none;
+				/*display: none;*/
 			}
 
 			.elementor-widget-loop_grid_filter .filter-close-btn:hover {
@@ -669,6 +668,7 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 			}
 		</style>
 
+		<!-- ✅ NO INLINE STYLE ATTRIBUTE HERE -->
 		<div class="loop-grid-filter-widget"
 		     data-widget-id="<?php echo esc_attr($widget_id); ?>"
 		     data-target="<?php echo esc_attr($settings["target_loop_grid_id"]); ?>"
@@ -676,6 +676,7 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
        	$settings["expandable_sections"],
        ); ?>">
 
+			<!-- ✅ NO INLINE STYLE ATTRIBUTE HERE EITHER -->
 			<div class="loop-filter-sidebar">
 				<button class="filter-close-btn" aria-label="Close Filters"></button>
 
@@ -850,6 +851,10 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 					const widget = $('[data-widget-id="' + widgetId + '"]');
 					const isExpandable = widget.data('expandable') === 'yes' || widget.data('expandable') === '1';
 					const sidebar = widget.find('.loop-filter-sidebar');
+
+					// ✅ CRITICAL: Remove any inline styles immediately
+					sidebar.removeAttr('style');
+					console.log('✅ Removed inline styles from sidebar on init');
 
 					// Close button functionality
 					widget.on('click', '.filter-close-btn', function(e) {
