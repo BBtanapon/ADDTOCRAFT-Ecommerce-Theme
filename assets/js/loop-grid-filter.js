@@ -1,6 +1,7 @@
 /**
- * Loop Grid Filter - FULLY RESPONSIVE VERSION
+ * Loop Grid Filter - COMPLETE FULLY RESPONSIVE VERSION
  * Supports Elementor breakpoints
+ * FIXED: Mobile filter toggle works multiple times
  */
 
 (function ($) {
@@ -46,6 +47,7 @@
 			);
 
 			this.findTargetGrid();
+			this.setupMobileToggle(); // CRITICAL: Initialize mobile toggle FIRST
 
 			if (!this.targetGrid || !this.targetGrid.length) {
 				console.warn("⚠️ Target grid not found");
@@ -58,7 +60,6 @@
 					this.captureUniqueProducts();
 					this.initPriceSliders();
 					this.bindEvents();
-					this.setupMobile();
 				}
 			};
 
@@ -448,19 +449,6 @@
 			this.widget.find(".loop-filter-reset").on("click", () => {
 				this.resetToUniqueProducts();
 			});
-
-			// Mobile
-			$(".filter-toggle-btn").on("click", (e) => {
-				e.preventDefault();
-				this.openMobileFilter();
-			});
-
-			this.widget
-				.find(".filter-close-btn, .filter-overlay")
-				.on("click", (e) => {
-					e.preventDefault();
-					this.closeMobileFilter();
-				});
 
 			// Handle window resize
 			let resizeTimer;
@@ -855,55 +843,146 @@
 			console.log("✅ Reset complete - showing all unique products");
 		}
 
-		setupMobile() {
-			if ($(".filter-toggle-btn").length === 0) {
-				const toggleBtn = $(
+		setupMobileToggle() {
+			console.log("📱 Setting up mobile filter toggle");
+
+			const self = this;
+			const sidebar = this.widget.find(".loop-filter-sidebar");
+			let toggleBtn = $(".filter-toggle-btn");
+			let overlay = $(".filter-overlay");
+
+			// FIXED: Always ensure elements exist
+			if (toggleBtn.length === 0) {
+				const newToggleBtn = $(
 					'<button class="filter-toggle-btn" aria-label="Open Filters">' +
 						'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
 						'<path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>' +
 						"</svg></button>",
 				);
-				$("body").append(toggleBtn);
+				$("body").append(newToggleBtn);
+				toggleBtn = $(".filter-toggle-btn");
 			}
 
-			if ($(".filter-overlay").length === 0) {
-				$("body").append('<div class="filter-overlay"></div>');
+			if (overlay.length === 0) {
+				$("body").append(
+					'<div class="filter-overlay" style="display: none;"></div>',
+				);
+				overlay = $(".filter-overlay");
 			}
+
+			// FIXED: Clean up old event listeners
+			$(document).off("click.filter-toggle");
+			$(document).off("click.filter-close");
+			$(document).off("click.filter-overlay");
+			this.widget.off("click.filter-sidebar");
+
+			// FIXED: Bind toggle button click with namespace
+			$(document).on(
+				"click.filter-toggle",
+				".filter-toggle-btn",
+				function (e) {
+					e.preventDefault();
+					e.stopPropagation();
+					console.log("🔓 Toggle button clicked - Opening filter");
+					self.openMobileFilter();
+				},
+			);
+
+			// FIXED: Bind close button click with namespace
+			this.widget.on(
+				"click.filter-close",
+				".filter-close-btn",
+				function (e) {
+					e.preventDefault();
+					e.stopPropagation();
+					console.log("🔐 Close button clicked - Closing filter");
+					self.closeMobileFilter();
+				},
+			);
+
+			// FIXED: Bind overlay click with namespace
+			$(document).on(
+				"click.filter-overlay",
+				".filter-overlay",
+				function (e) {
+					e.preventDefault();
+					e.stopPropagation();
+					console.log("🔐 Overlay clicked - Closing filter");
+					self.closeMobileFilter();
+				},
+			);
+
+			// FIXED: Prevent sidebar clicks from closing
+			this.widget.on(
+				"click.filter-sidebar",
+				".loop-filter-sidebar",
+				function (e) {
+					e.stopPropagation();
+				},
+			);
+
+			console.log("   ✅ Mobile toggle initialized");
 		}
 
 		openMobileFilter() {
-			this.widget.find(".loop-filter-sidebar").addClass("active");
-			$(".filter-overlay").addClass("active").fadeIn(300);
+			const sidebar = this.widget.find(".loop-filter-sidebar");
+			const overlay = $(".filter-overlay");
+
+			console.log("✅ Opening mobile filter");
+
+			// Add active class
+			sidebar.addClass("active");
+			overlay.addClass("active");
+
+			// Force display
+			overlay.stop(true, true).fadeIn(300);
+
+			// Prevent body scroll
 			$("body").css("overflow", "hidden");
+
+			console.log("   Sidebar active:", sidebar.hasClass("active"));
+			console.log("   Overlay active:", overlay.hasClass("active"));
 		}
 
 		closeMobileFilter() {
-			this.widget.find(".loop-filter-sidebar").removeClass("active");
-			$(".filter-overlay").removeClass("active").fadeOut(300);
+			const sidebar = this.widget.find(".loop-filter-sidebar");
+			const overlay = $(".filter-overlay");
+
+			console.log("✅ Closing mobile filter");
+
+			// Remove active class
+			sidebar.removeClass("active");
+			overlay.removeClass("active");
+
+			// Animate out
+			overlay.stop(true, true).fadeOut(300);
+
+			// Restore body scroll
 			$("body").css("overflow", "");
+
+			console.log("   Sidebar active:", sidebar.hasClass("active"));
+			console.log("   Overlay active:", overlay.hasClass("active"));
 		}
 	}
 
 	// Initialize
 	$(window).on("elementor/frontend/init", function () {
-		elementorFrontend.hooks.addAction(
-			"frontend/element_ready/loop_grid_filter.default",
-			function ($scope) {
-				new LoopGridFilter($scope.find(".loop-grid-filter-widget"));
-			},
-		);
-
-		setTimeout(function () {
-			$(".loop-grid-filter-widget").each(function () {
-				if (!$(this).data("filter-initialized")) {
-					new LoopGridFilter(this);
-					$(this).data("filter-initialized", true);
-				}
-			});
-		}, 1000);
+		if (typeof elementorFrontend !== "undefined") {
+			elementorFrontend.hooks.addAction(
+				"frontend/element_ready/loop_grid_filter.default",
+				function ($scope) {
+					const widget = $scope.find(".loop-grid-filter-widget");
+					if (widget.length && !widget.data("filter-initialized")) {
+						new LoopGridFilter(widget);
+						widget.data("filter-initialized", true);
+					}
+				},
+			);
+		}
 	});
 
 	$(document).ready(function () {
+		// Initialize filters on page load
 		setTimeout(function () {
 			$(".loop-grid-filter-widget").each(function () {
 				if (!$(this).data("filter-initialized")) {
@@ -912,5 +991,190 @@
 				}
 			});
 		}, 500);
+
+		// Re-initialize on dynamic content load (AJAX)
+		$(document).on("elementor/frontend/init", function () {
+			$(".loop-grid-filter-widget").each(function () {
+				if (!$(this).data("filter-initialized")) {
+					new LoopGridFilter(this);
+					$(this).data("filter-initialized", true);
+				}
+			});
+		});
+	});
+
+	// Handle window resize for responsive adjustments
+	$(window).on("resize", function () {
+		$(".loop-grid-filter-widget").each(function () {
+			const widget = $(this).data("filter-instance");
+			if (widget && widget.applyResponsiveLayout) {
+				widget.applyResponsiveLayout();
+			}
+		});
 	});
 })(jQuery);
+/**
+ * MOBILE FILTER TOGGLE - COMPLETE FIX v2
+ * Removes inline display:none and uses CSS class instead
+ * Add this to the VERY END of your loop-grid-filter.js file
+ */
+
+// ========== MOBILE FILTER TOGGLE ==========
+
+function initMobileFilterToggle() {
+	console.log("🎯 Initializing mobile filter toggle");
+
+	// Get sidebar
+	const $sidebar = $(".filter-sidebar, .loop-filter-sidebar");
+
+	// CRITICAL: Remove inline style that blocks toggle
+	$sidebar.each(function () {
+		$(this).removeAttr("style");
+	});
+
+	console.log("✅ Removed inline display styles");
+
+	// Get or create toggle button
+	if ($(".filter-toggle-btn").length === 0) {
+		$("body").append(
+			'<button class="filter-toggle-btn" aria-label="Open Filters">' +
+				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
+				'<path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>' +
+				"</svg></button>",
+		);
+	}
+
+	// Get or create overlay
+	if ($(".filter-overlay").length === 0) {
+		$("body").append('<div class="filter-overlay"></div>');
+	}
+
+	// Remove old listeners to prevent duplicates
+	$(document).off("click", ".filter-toggle-btn");
+	$(document).off("click", ".filter-close-btn");
+	$(document).off("click", ".filter-overlay");
+	$(document).off("click", ".filter-sidebar, .loop-filter-sidebar");
+
+	// ===== OPEN FILTER =====
+	$(document).on("click", ".filter-toggle-btn", function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		console.log("📱 Opening filter sidebar");
+
+		// Remove inline styles
+		$(".filter-sidebar, .loop-filter-sidebar").removeAttr("style");
+
+		// Add active class
+		$(".filter-sidebar, .loop-filter-sidebar").addClass("active");
+		$(".filter-overlay").addClass("active");
+
+		// Prevent scroll
+		$("body").css("overflow", "hidden");
+
+		console.log(
+			"✅ Sidebar opened - active class:",
+			$(".filter-sidebar, .loop-filter-sidebar").hasClass("active"),
+		);
+	});
+
+	// ===== CLOSE FILTER (Close Button) =====
+	$(document).on("click", ".filter-close-btn", function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		console.log("📱 Closing filter sidebar");
+
+		// Remove active class
+		$(".filter-sidebar, .loop-filter-sidebar").removeClass("active");
+		$(".filter-overlay").removeClass("active");
+
+		// Restore scroll
+		$("body").css("overflow", "");
+
+		console.log(
+			"✅ Sidebar closed - active class:",
+			$(".filter-sidebar, .loop-filter-sidebar").hasClass("active"),
+		);
+	});
+
+	// ===== CLOSE FILTER (Overlay Click) =====
+	$(document).on("click", ".filter-overlay", function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		console.log("📱 Overlay clicked - closing sidebar");
+
+		// Remove active class
+		$(".filter-sidebar, .loop-filter-sidebar").removeClass("active");
+		$(".filter-overlay").removeClass("active");
+
+		// Restore scroll
+		$("body").css("overflow", "");
+
+		console.log("✅ Sidebar closed via overlay");
+	});
+
+	// ===== PREVENT SIDEBAR CONTENT FROM CLOSING =====
+	$(document).on(
+		"click",
+		".filter-sidebar, .loop-filter-sidebar",
+		function (e) {
+			e.stopPropagation();
+		},
+	);
+
+	// ===== CLOSE SIDEBAR ON DESKTOP RESIZE =====
+	$(window).on("resize", function () {
+		if (window.innerWidth > 1024) {
+			$(".filter-sidebar, .loop-filter-sidebar").removeClass("active");
+			$(".filter-overlay").removeClass("active");
+			$("body").css("overflow", "");
+
+			console.log("📱 Window resized to desktop - sidebar closed");
+		}
+	});
+
+	console.log("✅ Mobile filter toggle fully initialized");
+}
+
+// ===== INIT ON DOCUMENT READY =====
+$(document).ready(function () {
+	setTimeout(initMobileFilterToggle, 1000);
+});
+
+// ===== RE-INIT ON ELEMENTOR FRONTEND =====
+$(window).on("elementor/frontend/init", function () {
+	setTimeout(initMobileFilterToggle, 1500);
+});
+
+// ===== RE-INIT ON AJAX COMPLETE =====
+$(document).on("ajaxComplete", function () {
+	setTimeout(initMobileFilterToggle, 500);
+});
+
+// ===== MUTATION OBSERVER FOR DYNAMIC CONTENT =====
+if (typeof MutationObserver !== "undefined") {
+	const observer = new MutationObserver(function (mutations) {
+		mutations.forEach(function (mutation) {
+			// Check if new sidebar was added
+			if (
+				mutation.type === "childList" &&
+				$(mutation.addedNodes).find(
+					".filter-sidebar, .loop-filter-sidebar",
+				).length
+			) {
+				console.log("🔄 New sidebar detected - reinitializing");
+				setTimeout(initMobileFilterToggle, 500);
+			}
+		});
+	});
+
+	// Start observing
+	$(document).ready(function () {
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+		});
+	});
+}
