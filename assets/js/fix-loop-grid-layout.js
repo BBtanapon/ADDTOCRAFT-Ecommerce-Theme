@@ -1,10 +1,40 @@
 /**
- * Loop Grid Layout Fix - COMPLETE VERSION
- * Ensures proper grid layout after Elementor loads
+ * Loop Grid Layout Fix - FULLY RESPONSIVE WITH ELEMENTOR BREAKPOINTS
+ * Desktop: >1024px | Tablet: 768-1024px | Mobile: ≤767px
  */
 
 (function ($) {
 	"use strict";
+
+	// Elementor breakpoints
+	const BREAKPOINTS = {
+		mobile: 767,
+		tablet: 1024,
+	};
+
+	function getDeviceType() {
+		const width = window.innerWidth;
+		if (width <= BREAKPOINTS.mobile) return "mobile";
+		if (width <= BREAKPOINTS.tablet) return "tablet";
+		return "desktop";
+	}
+
+	function getColumnsForDevice(container) {
+		const deviceType = getDeviceType();
+
+		// Try to get columns from data attributes
+		let columns = 4; // default
+
+		if (deviceType === "mobile") {
+			columns = parseInt(container.dataset.columnsMobile) || 1;
+		} else if (deviceType === "tablet") {
+			columns = parseInt(container.dataset.columnsTablet) || 2;
+		} else {
+			columns = parseInt(container.dataset.columns) || 4;
+		}
+
+		return columns;
+	}
 
 	function fixLoopGridLayout() {
 		console.log(
@@ -12,7 +42,6 @@
 			"color: #FF9800; font-weight: bold;",
 		);
 
-		// Find all loop containers
 		const loopContainers = document.querySelectorAll(
 			".elementor-loop-container, .custom-product-loop-grid",
 		);
@@ -22,13 +51,20 @@
 			return;
 		}
 
+		const deviceType = getDeviceType();
+		const width = window.innerWidth;
+
+		console.log(`   Device: ${deviceType} (${width}px)`);
 		console.log(`   Found ${loopContainers.length} loop container(s)`);
 
 		loopContainers.forEach((container, index) => {
+			const columns = getColumnsForDevice(container);
+
+			console.log(`   Container ${index + 1}: ${columns} columns`);
+
 			// Force grid display
 			container.style.display = "grid";
-			container.style.gridTemplateColumns = "repeat(4, 1fr)";
-			container.style.gap = "30px";
+			container.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 			container.style.width = "100%";
 			container.style.maxWidth = "100%";
 			container.style.justifyItems = "stretch";
@@ -37,14 +73,21 @@
 			container.style.alignContent = "start";
 			container.style.boxSizing = "border-box";
 
+			// Set gap based on device
+			let gap = "30px";
+			if (deviceType === "mobile") {
+				gap = "15px";
+			} else if (deviceType === "tablet") {
+				gap = "20px";
+			}
+			container.style.gap = gap;
+
 			// Fix all children
 			const items = container.querySelectorAll(
 				".e-loop-item, .product-loop-item, .elementor-post",
 			);
 
-			console.log(`   Container ${index + 1}: ${items.length} items`);
-
-			items.forEach((item, itemIndex) => {
+			items.forEach((item) => {
 				// Force proper sizing
 				item.style.width = "100%";
 				item.style.maxWidth = "100%";
@@ -95,27 +138,6 @@
 		);
 	}
 
-	// Responsive layout fix
-	function applyResponsiveLayout() {
-		const width = window.innerWidth;
-		const loopContainers = document.querySelectorAll(
-			".elementor-loop-container, .custom-product-loop-grid",
-		);
-
-		loopContainers.forEach((container) => {
-			if (width <= 768) {
-				// Mobile: 1 column
-				container.style.gridTemplateColumns = "repeat(1, 1fr)";
-			} else if (width <= 1024) {
-				// Tablet: 2 columns
-				container.style.gridTemplateColumns = "repeat(2, 1fr)";
-			} else {
-				// Desktop: 4 columns
-				container.style.gridTemplateColumns = "repeat(4, 1fr)";
-			}
-		});
-	}
-
 	// Run on document ready
 	$(document).ready(function () {
 		console.log(
@@ -123,14 +145,12 @@
 			"color: #2196F3; font-weight: bold;",
 		);
 		fixLoopGridLayout();
-		applyResponsiveLayout();
 	});
 
 	// Run on window load
 	$(window).on("load", function () {
 		setTimeout(function () {
 			fixLoopGridLayout();
-			applyResponsiveLayout();
 		}, 500);
 	});
 
@@ -144,7 +164,6 @@
 
 			setTimeout(function () {
 				fixLoopGridLayout();
-				applyResponsiveLayout();
 			}, 1000);
 
 			// Hook into loop grid widget
@@ -165,12 +184,12 @@
 		});
 	}
 
-	// Handle window resize
+	// Handle window resize with debounce
 	let resizeTimer;
 	$(window).on("resize", function () {
 		clearTimeout(resizeTimer);
 		resizeTimer = setTimeout(function () {
-			applyResponsiveLayout();
+			fixLoopGridLayout();
 		}, 250);
 	});
 
@@ -182,7 +201,6 @@
 			if (mutation.addedNodes.length > 0) {
 				mutation.addedNodes.forEach(function (node) {
 					if (node.nodeType === 1) {
-						// Element node
 						if (
 							node.classList &&
 							(node.classList.contains("e-loop-item") ||

@@ -2360,3 +2360,670 @@ select.loop-filter-sort {
 		gap: 15px !important;
 	}
 }
+/* =============================================================================
+    RESPONSIVE DESIGN - ELEMENTOR BREAKPOINTS
+    Desktop: > 1024px
+    Tablet: 768px - 1024px
+    Mobile: ≤ 767px
+    ============================================================================= */
+
+/* TABLET & BELOW (≤1024px) */
+@media (max-width: 1024px) {
+    /* Remove flex layout on mobile/tablet */
+    .custom-product-filter-wrapper,
+    .loop-grid-filter-widget {
+        display: block !important;
+        flex-direction: column !important;
+        padding: 15px !important;
+        gap: 0 !important;
+    }
+
+    /* Show floating filter button */
+    .filter-toggle-btn {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: fixed !important;
+        bottom: 20px !important;
+        right: 20px !important;
+        width: 60px !important;
+        height: 60px !important;
+        z-index: 999 !important;
+    }
+
+    /* CRITICAL FIX: Sidebar completely off-screen */
+    .filter-sidebar,
+    .loop-filter-sidebar {
+        position: fixed !important;
+        left: -100% !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        right: auto !important;
+        width: 280px !important;
+        min-width: 280px !important;
+        max-width: 280px !important;
+        height: 100vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        z-index: 1000 !important;
+        transform: none !important;
+        transition: left 0.3s ease !important;
+        border-radius: 0 !important;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
+        margin: 0 !important;
+        padding: 25px 20px !important;
+        background: #ffffff !important;
+    }
+
+    /* When active, slide in from left */
+    .filter-sidebar.active,
+    .loop-filter-sidebar.active {
+        left: 0 !important;
+        transform: none !important;
+        right: auto !important;
+    }
+
+    /* Show overlay */
+    .filter-overlay {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        z-index: 998 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transition: opacity 0.3s ease, visibility 0.3s ease !important;
+        pointer-events: none !important;
+    }
+
+    .filter-overlay.active {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: all !important;
+    }
+
+    /* Show close button */
+    .filter-close-btn {
+        display: block !important;
+        position: absolute !important;
+        top: 15px !important;
+        right: 15px !important;
+        width: 32px !important;
+        height: 32px !important;
+        z-index: 10 !important;
+    }
+
+    /* Products area takes full width - NO BLANK SPACE */
+    .products-area {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        flex: none !important;
+    }
+
+    /* Grid: 2 columns on tablet */
+    .elementor-loop-container,
+    .custom-product-loop-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+    }
+
+    .products-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+    }
+
+    /* Override specific Elementor grid classes */
+    .elementor-grid-3,
+    .elementor-grid-4,
+    .elementor-grid-5,
+    .elementor-grid-6 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* MOBILE (≤767px) */
+@media (max-width: 767px) {
+    /* Adjust sidebar for mobile */
+    .filter-sidebar,
+    .loop-filter-sidebar {
+        left: -100% !important;
+        width: 100% !important;
+        max-width: 300px !important;
+        padding: 50px 20px 20px !important;
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        right: auto !important;
+        height: 100vh !important;
+        overflow-y: auto !important;
+        z-index: 1000 !important;
+        transform: none !important;
+        transition: left 0.3s ease !important;
+    }
+
+    .filter-sidebar.active,
+    .loop-filter-sidebar.active {
+        left: 0 !important;
+        right: auto !important;
+        transform: none !important;
+    }
+
+    /* Grid: 1 column on mobile */
+    .elementor-loop-container,
+    .custom-product-loop-grid {
+        grid-template-columns: repeat(1, 1fr) !important;
+        gap: 15px !important;
+    }
+
+    .products-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+
+    /* Override ALL Elementor grid classes for mobile */
+    .elementor-grid-1,
+    .elementor-grid-2,
+    .elementor-grid-3,
+    .elementor-grid-4,
+    .elementor-grid-5,
+    .elementor-grid-6 {
+        grid-template-columns: repeat(1, 1fr) !important;
+    }
+
+    /* Adjust filter button */
+    .filter-toggle-btn {
+        width: 56px !important;
+        height: 56px !important;
+        bottom: 16px !important;
+        right: 16px !important;
+    }
+
+    .filter-toggle-btn svg {
+        width: 22px !important;
+        height: 22px !important;
+    }
+
+    /* Ensure products area takes full width */
+    .products-area {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Ensure wrapper doesn't create blank space */
+    .custom-product-filter-wrapper,
+    .loop-grid-filter-widget {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 15px !important;
+        margin: 0 !important;
+        gap: 0 !important;
+    }
+
+    /* Product card adjustments */
+    .btn-add-to-cart,
+    .btn-select-options {
+        width: 100% !important;
+        padding: 10px 12px !important;
+    }
+
+    .product-badges {
+        top: 10px !important;
+        padding: 0 10px !important;
+    }
+}
+
+/* MOBILE SMALL (≤480px) */
+@media (max-width: 480px) {
+    .filter-sidebar,
+    .loop-filter-sidebar {
+        left: -100% !important;
+        padding-bottom: 60px !important;
+        width: 100% !important;
+        max-width: 280px !important;
+    }
+
+    .filter-toggle-btn {
+        width: 52px !important;
+        height: 52px !important;
+        bottom: 12px !important;
+        right: 12px !important;
+    }
+
+    .filter-toggle-btn svg {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    .custom-product-filter-wrapper,
+    .loop-grid-filter-widget {
+        padding: 10px !important;
+    }
+
+    .elementor-loop-container,
+    .custom-product-loop-grid {
+        gap: 12px !important;
+    }
+}
+
+/* DESKTOP (>1024px) */
+@media (min-width: 1025px) {
+    /* Reset mobile styles for desktop */
+    .filter-sidebar,
+    .loop-filter-sidebar {
+        position: sticky !important;
+        left: auto !important;
+        top: 20px !important;
+        width: 260px !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
+        height: fit-content !important;
+        transform: none !important;
+        transition: transform 0.3s ease !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        margin-bottom: 40px !important;
+    }
+
+    /* Hide mobile-only elements on desktop */
+    .filter-toggle-btn {
+        display: none !important;
+    }
+
+    .filter-overlay {
+        display: none !important;
+    }
+
+    .filter-close-btn {
+        display: none !important;
+    }
+
+    /* Restore flex layout for desktop */
+    .custom-product-filter-wrapper {
+        display: flex !important;
+        gap: 15px !important;
+        flex-direction: row !important;
+    }
+
+    /* Products area proper sizing on desktop */
+    .products-area {
+        flex: 1 !important;
+    }
+
+    /* Desktop grid columns controlled by widget settings */
+    .elementor-loop-container,
+    .custom-product-loop-grid {
+        gap: 30px !important;
+    }
+}
+
+
+/* =============================================================================
+    CRITICAL: FORCE GRID LAYOUT WITH !important
+    ============================================================================= */
+
+.elementor-loop-container,
+.custom-product-loop-grid {
+    display: grid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-items: stretch !important;
+    align-items: start !important;
+    justify-content: start !important;
+    align-content: start !important;
+    box-sizing: border-box !important;
+}
+
+/* =============================================================================
+    RESPONSIVE DESIGN - ELEMENTOR BREAKPOINTS WITH !important
+    Desktop: > 1024px | Tablet: 768-1024px | Mobile: ≤ 767px
+    ============================================================================= */
+
+/* TABLET & BELOW (≤1024px) */
+@media (max-width: 1024px) {
+    /* Remove flex layout on mobile/tablet */
+    .custom-product-filter-wrapper,
+    .loop-grid-filter-widget {
+        display: block !important;
+        flex-direction: column !important;
+        padding: 15px !important;
+        gap: 0 !important;
+    }
+
+    /* Show floating filter button */
+    .filter-toggle-btn {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: fixed !important;
+        bottom: 20px !important;
+        right: 20px !important;
+        width: 60px !important;
+        height: 60px !important;
+        z-index: 999 !important;
+    }
+
+    /* CRITICAL FIX: Sidebar completely off-screen */
+    .filter-sidebar,
+    .loop-filter-sidebar {
+        position: fixed !important;
+        left: -100% !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        right: auto !important;
+        width: 280px !important;
+        min-width: 280px !important;
+        max-width: 280px !important;
+        height: 100vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        z-index: 1000 !important;
+        transform: none !important;
+        transition: left 0.3s ease !important;
+        border-radius: 0 !important;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
+        margin: 0 !important;
+        padding: 25px 20px !important;
+        background: #ffffff !important;
+    }
+
+    .filter-sidebar.active,
+    .loop-filter-sidebar.active {
+        left: 0 !important;
+    }
+
+    /* Show overlay */
+    .filter-overlay {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        z-index: 998 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transition: opacity 0.3s ease, visibility 0.3s ease !important;
+        pointer-events: none !important;
+    }
+
+    .filter-overlay.active {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: all !important;
+    }
+
+    /* Show close button */
+    .filter-close-btn {
+        display: block !important;
+        position: absolute !important;
+        top: 15px !important;
+        right: 15px !important;
+        width: 32px !important;
+        height: 32px !important;
+        z-index: 10 !important;
+    }
+
+    /* Products area takes full width */
+    .products-area {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        flex: none !important;
+    }
+
+    /* FORCE: 2 columns on tablet */
+    .elementor-loop-container,
+    .custom-product-loop-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+    }
+
+    .products-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+    }
+
+    /* Override ALL Elementor grid classes */
+    .elementor-grid,
+    .elementor-grid-1,
+    .elementor-grid-2,
+    .elementor-grid-3,
+    .elementor-grid-4,
+    .elementor-grid-5,
+    .elementor-grid-6 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* MOBILE (≤767px) */
+@media (max-width: 767px) {
+    /* Adjust sidebar for mobile */
+    .filter-sidebar,
+    .loop-filter-sidebar {
+        left: -100% !important;
+        width: 100% !important;
+        max-width: 300px !important;
+        padding: 50px 20px 20px !important;
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        right: auto !important;
+        height: 100vh !important;
+        overflow-y: auto !important;
+        z-index: 1000 !important;
+        transform: none !important;
+        transition: left 0.3s ease !important;
+    }
+
+    .filter-sidebar.active,
+    .loop-filter-sidebar.active {
+        left: 0 !important;
+        right: auto !important;
+        transform: none !important;
+    }
+
+    /* FORCE: 1 column on mobile */
+    .elementor-loop-container,
+    .custom-product-loop-grid {
+        grid-template-columns: repeat(1, 1fr) !important;
+        gap: 15px !important;
+    }
+
+    .products-grid {
+        grid-template-columns: 1fr !important;
+        gap: 15px !important;
+    }
+
+    /* Override ALL Elementor grid classes for mobile */
+    .elementor-grid,
+    .elementor-grid-1,
+    .elementor-grid-2,
+    .elementor-grid-3,
+    .elementor-grid-4,
+    .elementor-grid-5,
+    .elementor-grid-6 {
+        grid-template-columns: repeat(1, 1fr) !important;
+    }
+
+    /* Adjust filter button */
+    .filter-toggle-btn {
+        width: 56px !important;
+        height: 56px !important;
+        bottom: 16px !important;
+        right: 16px !important;
+    }
+
+    .filter-toggle-btn svg {
+        width: 22px !important;
+        height: 22px !important;
+    }
+
+    /* Ensure products area takes full width */
+    .products-area {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Ensure wrapper doesn't create blank space */
+    .custom-product-filter-wrapper,
+    .loop-grid-filter-widget {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 15px !important;
+        margin: 0 !important;
+        gap: 0 !important;
+    }
+
+    /* Product card adjustments */
+    .btn-add-to-cart,
+    .btn-select-options {
+        width: 100% !important;
+        padding: 10px 12px !important;
+    }
+
+    .product-badges {
+        top: 10px !important;
+        padding: 0 10px !important;
+    }
+}
+
+/* MOBILE SMALL (≤480px) */
+@media (max-width: 480px) {
+    .filter-sidebar,
+    .loop-filter-sidebar {
+        left: -100% !important;
+        padding-bottom: 60px !important;
+        width: 100% !important;
+        max-width: 280px !important;
+    }
+
+    .filter-toggle-btn {
+        width: 52px !important;
+        height: 52px !important;
+        bottom: 12px !important;
+        right: 12px !important;
+    }
+
+    .filter-toggle-btn svg {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    .custom-product-filter-wrapper,
+    .loop-grid-filter-widget {
+        padding: 10px !important;
+    }
+
+    .elementor-loop-container,
+    .custom-product-loop-grid {
+        grid-template-columns: repeat(1, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    /* Override ALL grid classes */
+    .elementor-grid,
+    .elementor-grid-1,
+    .elementor-grid-2,
+    .elementor-grid-3,
+    .elementor-grid-4,
+    .elementor-grid-5,
+    .elementor-grid-6 {
+        grid-template-columns: repeat(1, 1fr) !important;
+    }
+}
+
+/* DESKTOP (>1024px) */
+@media (min-width: 1025px) {
+    /* Reset mobile styles for desktop */
+    .filter-sidebar,
+    .loop-filter-sidebar {
+        position: sticky !important;
+        left: auto !important;
+        top: 20px !important;
+        width: 260px !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
+        height: fit-content !important;
+        transform: none !important;
+        transition: transform 0.3s ease !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        margin-bottom: 40px !important;
+    }
+
+    /* Hide mobile-only elements on desktop */
+    .filter-toggle-btn {
+        display: none !important;
+    }
+
+    .filter-overlay {
+        display: none !important;
+    }
+
+    .filter-close-btn {
+        display: none !important;
+    }
+
+    /* Restore flex layout for desktop */
+    .custom-product-filter-wrapper {
+        display: flex !important;
+        gap: 15px !important;
+        flex-direction: row !important;
+    }
+
+    /* Products area proper sizing on desktop */
+    .products-area {
+        flex: 1 !important;
+    }
+
+    /* Desktop grid - respect widget settings but enforce with !important */
+    .elementor-loop-container,
+    .custom-product-loop-grid {
+        display: grid !important;
+        gap: 30px !important;
+    }
+
+    /* Default to 4 columns if no specific class */
+    .elementor-loop-container:not([class*="elementor-grid-"]),
+    .custom-product-loop-grid:not([class*="elementor-grid-"]) {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+
+    /* Respect specific column settings on desktop */
+    .elementor-grid-1 {
+        grid-template-columns: repeat(1, 1fr) !important;
+    }
+
+    .elementor-grid-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .elementor-grid-3 {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    .elementor-grid-4 {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+
+    .elementor-grid-5 {
+        grid-template-columns: repeat(5, 1fr) !important;
+    }
+
+    .elementor-grid-6 {
+        grid-template-columns: repeat(6, 1fr) !important;
+    }
+}

@@ -1,9 +1,6 @@
 /**
- * Loop Grid Filter - ULTIMATE DEDUPLICATION FIX + Widget Reinitialization
- * Filters by Product ID FIRST - guarantees zero duplicates
- * ADDED: Reinitializes all widget scripts after filtering
- *
- * @package HelloElementorChild
+ * Loop Grid Filter - FULLY RESPONSIVE VERSION
+ * Supports Elementor breakpoints
  */
 
 (function ($) {
@@ -17,8 +14,14 @@
 			this.targetGrid = null;
 			this.debounceTimer = null;
 
-			// Store UNIQUE products only - Map ensures uniqueness
-			this.uniqueProducts = new Map(); // productId => {element, data, index}
+			// Elementor breakpoints
+			this.BREAKPOINTS = {
+				mobile: 767,
+				tablet: 1024,
+			};
+
+			// Store UNIQUE products only
+			this.uniqueProducts = new Map();
 
 			// Grid properties
 			this.gridClasses = "";
@@ -39,7 +42,7 @@
 
 		init() {
 			console.log(
-				"🎯 ULTIMATE FILTER: Initializing with Product ID deduplication",
+				"🎯 RESPONSIVE FILTER: Initializing with Product ID deduplication",
 			);
 
 			this.findTargetGrid();
@@ -49,7 +52,6 @@
 				return;
 			}
 
-			// Wait for attributes
 			const initFilter = () => {
 				if (this.uniqueProducts.size === 0) {
 					console.log("📸 Capturing unique products");
@@ -62,6 +64,47 @@
 
 			$(document).on("loop-grid-attributes-ready", initFilter);
 			setTimeout(initFilter, 2000);
+		}
+
+		getDeviceType() {
+			const width = window.innerWidth;
+			if (width <= this.BREAKPOINTS.mobile) return "mobile";
+			if (width <= this.BREAKPOINTS.tablet) return "tablet";
+			return "desktop";
+		}
+
+		getResponsiveColumns() {
+			const deviceType = this.getDeviceType();
+			const container = this.targetGrid[0];
+
+			// Try to get from data attributes
+			if (container) {
+				if (
+					deviceType === "mobile" &&
+					container.dataset.columnsMobile
+				) {
+					return parseInt(container.dataset.columnsMobile);
+				} else if (
+					deviceType === "tablet" &&
+					container.dataset.columnsTablet
+				) {
+					return parseInt(container.dataset.columnsTablet);
+				} else if (container.dataset.columns) {
+					return parseInt(container.dataset.columns);
+				}
+			}
+
+			// Fallback defaults
+			if (deviceType === "mobile") return 1;
+			if (deviceType === "tablet") return 2;
+			return 4;
+		}
+
+		getResponsiveGap() {
+			const deviceType = this.getDeviceType();
+			if (deviceType === "mobile") return "15px";
+			if (deviceType === "tablet") return "20px";
+			return "30px";
 		}
 
 		findTargetGrid() {
@@ -96,20 +139,14 @@
 			}
 		}
 
-		/**
-		 * CRITICAL: Capture UNIQUE products only - filter by Product ID FIRST
-		 */
 		captureUniqueProducts() {
-			// Store grid properties
 			this.gridClasses = this.targetGrid.attr("class") || "";
 			this.gridStyles = this.targetGrid.attr("style") || "";
 
 			console.log("📦 Capturing products...");
 
-			// Clear map
 			this.uniqueProducts.clear();
 
-			// Find all potential product items
 			const items = this.targetGrid.find(
 				'.e-loop-item, .product-loop-item, [class*="product-id-"]',
 			);
@@ -127,7 +164,6 @@
 					return;
 				}
 
-				// CRITICAL: Skip if product ID already exists in Map
 				if (this.uniqueProducts.has(productId)) {
 					console.log(
 						`   🚫 Skipping duplicate product ID: ${productId} (item ${index})`,
@@ -136,15 +172,13 @@
 					return;
 				}
 
-				// Extract product data
 				const productData = this.extractProductData($element);
 
-				// Store in Map (Map automatically ensures uniqueness by key)
 				this.uniqueProducts.set(productId, {
 					id: productId,
-					element: element.cloneNode(true), // Deep clone
+					element: element.cloneNode(true),
 					data: productData,
-					index: this.uniqueProducts.size, // Use Map size as index
+					index: this.uniqueProducts.size,
 				});
 
 				console.log(
@@ -160,23 +194,15 @@
 					`   🚫 Skipped ${skippedDuplicates} duplicate items`,
 				);
 			}
-
-			// Log all stored products
-			console.log("\n📋 Stored Product IDs:");
-			Array.from(this.uniqueProducts.keys()).forEach((id, i) => {
-				console.log(`   ${i + 1}. Product ID: ${id}`);
-			});
 		}
 
 		extractProductId($element) {
-			// Method 1: Data attributes
 			let id =
 				$element.data("product-id") || $element.attr("data-product-id");
 			if (id && id !== "{{ post.id }}") {
 				return String(id);
 			}
 
-			// Method 2: From classes
 			const classes = $element.attr("class") || "";
 			const patterns = [
 				/product-id-(\d+)/,
@@ -263,7 +289,6 @@
 				}
 
 				let attrName = key;
-				// Convert camelCase to snake_case for pa_ attributes
 				if (attrName.startsWith("pa") && attrName.length > 2) {
 					if (attrName[2] === attrName[2].toUpperCase()) {
 						attrName = attrName
@@ -419,7 +444,7 @@
 				this.applyFilters();
 			});
 
-			// RESET - render all unique products
+			// RESET
 			this.widget.find(".loop-filter-reset").on("click", () => {
 				this.resetToUniqueProducts();
 			});
@@ -436,6 +461,15 @@
 					e.preventDefault();
 					this.closeMobileFilter();
 				});
+
+			// Handle window resize
+			let resizeTimer;
+			$(window).on("resize", () => {
+				clearTimeout(resizeTimer);
+				resizeTimer = setTimeout(() => {
+					this.applyResponsiveLayout();
+				}, 250);
+			});
 		}
 
 		updateCheckboxArray(filterKey, selector) {
@@ -473,15 +507,11 @@
 			};
 		}
 
-		/**
-		 * Apply filters - works with UNIQUE products from Map
-		 */
 		applyFilters() {
 			console.log("🔍 Applying filters:", this.currentFilters);
 
 			const matchedProducts = [];
 
-			// Iterate through Map - guaranteed unique by product ID
 			this.uniqueProducts.forEach((product) => {
 				if (this.productMatchesFilters(product.data)) {
 					matchedProducts.push(product);
@@ -508,7 +538,6 @@
 				});
 			}
 
-			// Rebuild with matched products
 			this.renderProducts(matchedProducts);
 		}
 
@@ -570,54 +599,40 @@
 			return true;
 		}
 
-		/**
-		 * Render products to grid - GUARANTEED UNIQUE + Reinitialize Widgets
-		 */
 		renderProducts(products) {
 			console.log(`🔨 Rendering ${products.length} UNIQUE products`);
 
 			const container = this.targetGrid[0];
-
-			// Clear grid
 			container.innerHTML = "";
 
-			// Restore grid properties
-			this.targetGrid.attr("class", this.gridClasses);
-			if (this.gridStyles) {
-				this.targetGrid.attr("style", this.gridStyles);
-			}
+			// Get responsive settings
+			const columns = this.getResponsiveColumns();
+			const gap = this.getResponsiveGap();
+			const deviceType = this.getDeviceType();
 
-			// CRITICAL: Force 4-column grid layout with inline styles
+			console.log(
+				`   Device: ${deviceType}, Columns: ${columns}, Gap: ${gap}`,
+			);
+
+			// Apply responsive grid
 			this.targetGrid.css({
-				display: "grid !important",
-				"grid-template-columns": "repeat(4, 1fr) !important",
-				gap: "30px !important",
-				width: "100% !important",
-				"justify-items": "stretch !important",
-				"align-items": "start !important",
-				"justify-content": "start !important",
-				"align-content": "start !important",
+				display: "grid",
+				"grid-template-columns": `repeat(${columns}, 1fr)`,
+				gap: gap,
+				width: "100%",
+				"max-width": "100%",
+				"justify-items": "stretch",
+				"align-items": "start",
+				"justify-content": "start",
+				"align-content": "start",
+				"box-sizing": "border-box",
 			});
 
-			// Add inline style attribute to force it
-			const inlineStyle = `
-				display: grid !important;
-				grid-template-columns: repeat(4, 1fr) !important;
-				gap: 30px !important;
-				width: 100% !important;
-				justify-items: stretch !important;
-				align-items: start !important;
-				justify-content: start !important;
-				align-content: start !important;
-			`;
-			this.targetGrid.attr("style", inlineStyle);
-
-			// CRITICAL: Track rendered IDs to prevent any duplicates
+			// Track rendered IDs
 			const renderedIds = new Set();
 
 			// Add products
 			products.forEach((product) => {
-				// Double-check: Skip if already rendered
 				if (renderedIds.has(product.id)) {
 					console.warn(
 						`⚠️ Prevented duplicate render of product ${product.id}`,
@@ -625,11 +640,8 @@
 					return;
 				}
 
-				// Create fresh clone
 				const freshClone = product.element.cloneNode(true);
 				container.appendChild(freshClone);
-
-				// Mark as rendered
 				renderedIds.add(product.id);
 			});
 
@@ -647,32 +659,32 @@
 				this.hideNoResults();
 			}
 
-			// ✨ CRITICAL FIX: Reinitialize all widget scripts
+			// Reinitialize widgets
 			this.reinitializeWidgets();
 		}
 
-		/**
-		 * ✨ NEW: Reinitialize all custom widgets after filtering
-		 * This ensures scripts like product_image_hover_gallery work again
-		 */
+		applyResponsiveLayout() {
+			const columns = this.getResponsiveColumns();
+			const gap = this.getResponsiveGap();
+
+			this.targetGrid.css({
+				"grid-template-columns": `repeat(${columns}, 1fr)`,
+				gap: gap,
+			});
+
+			console.log(`📱 Layout updated: ${columns} columns, ${gap} gap`);
+		}
+
 		reinitializeWidgets() {
 			console.log("🔄 Reinitializing widgets after filter...");
 
-			// Wait for DOM to be ready
 			setTimeout(() => {
-				// Reinitialize product image hover galleries
 				this.reinitializeImageHoverGalleries();
-
-				// Reinitialize any other custom widgets
 				this.reinitializeOtherWidgets();
-
 				console.log("✅ Widgets reinitialized successfully");
 			}, 100);
 		}
 
-		/**
-		 * Reinitialize Product Image Hover Gallery widgets
-		 */
 		reinitializeImageHoverGalleries() {
 			const galleries = this.targetGrid.find(".product-hover-gallery");
 
@@ -730,11 +742,9 @@
 					}
 				}
 
-				// Remove old event listeners to prevent duplicates
 				$wrapper.off("mouseenter mouseleave");
 				indicators.off("click");
 
-				// Attach new event listeners
 				$wrapper.on("mouseenter", function () {
 					isHovering = true;
 					startCycle();
@@ -765,27 +775,18 @@
 			});
 		}
 
-		/**
-		 * Reinitialize other custom widgets (add as needed)
-		 */
 		reinitializeOtherWidgets() {
-			// Add to cart buttons
 			const $addToCartButtons = this.targetGrid.find(".ajax_add_to_cart");
 			if ($addToCartButtons.length > 0) {
 				console.log(
 					`   🛒 Found ${$addToCartButtons.length} add to cart buttons`,
 				);
-				// WooCommerce handles this automatically, but you can add custom handlers here
 			}
 
-			// Product badges (if they have dynamic functionality)
 			const $badges = this.targetGrid.find(".product-badge");
 			if ($badges.length > 0) {
 				console.log(`   🏷️ Found ${$badges.length} product badges`);
-				// Add any custom badge functionality here
 			}
-
-			// Any other custom widgets can be reinitialized here
 		}
 
 		animateItems() {
@@ -817,18 +818,13 @@
 			this.targetGrid.find(".no-results-message").remove();
 		}
 
-		/**
-		 * RESET: Show ALL unique products (from Map)
-		 */
 		resetToUniqueProducts() {
 			console.log("🔄 RESET: Showing all unique products");
 
-			// Clear form
 			this.widget.find(".loop-filter-search").val("");
 			this.widget.find(".loop-filter-sort").val("date");
 			this.widget.find('input[type="checkbox"]').prop("checked", false);
 
-			// Reset price
 			const maxPrice =
 				parseInt(
 					this.widget.find(".loop-price-max-slider").attr("max"),
@@ -837,7 +833,6 @@
 			this.widget.find(".loop-price-max-slider").val(maxPrice);
 			this.updatePriceDisplay();
 
-			// Reset state
 			this.currentFilters = {
 				search: "",
 				sort: "date",
@@ -848,10 +843,7 @@
 				maxPrice: maxPrice,
 			};
 
-			// Render ALL unique products from Map
 			const allUniqueProducts = Array.from(this.uniqueProducts.values());
-
-			// Sort by original index
 			allUniqueProducts.sort((a, b) => a.index - b.index);
 
 			console.log(

@@ -1,7 +1,7 @@
 <?php
 /**
- * Custom Product Loop Grid Widget - FIXED NO DUPLICATES
- * Ensures unique products are rendered once
+ * Custom Product Loop Grid Widget - FULLY RESPONSIVE
+ * Matches Elementor breakpoints: Desktop (>1024px), Tablet (768-1024px), Mobile (≤767px)
  *
  * @package HelloElementorChild
  */
@@ -13,7 +13,7 @@ if (!defined("ABSPATH")) {
 class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 {
 	private $loaded_templates = [];
-	private $rendered_product_ids = []; // CRITICAL: Track rendered products
+	private $rendered_product_ids = [];
 
 	public function get_name()
 	{
@@ -155,9 +155,21 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
 		$this->end_controls_section();
 
-		// LAYOUT SETTINGS
+		// LAYOUT SETTINGS - FULLY RESPONSIVE WITH !important
 		$this->start_controls_section("section_layout", [
 			"label" => __("Layout", "hello-elementor-child"),
+		]);
+
+		$this->add_control("responsive_notice", [
+			"type" => \Elementor\Controls_Manager::RAW_HTML,
+			"raw" =>
+				'<div style="background: #e3f2fd; padding: 10px; border-left: 4px solid #2196f3; margin-bottom: 15px;">' .
+				"<strong>📱 Responsive Settings (!important)</strong><br>" .
+				"Desktop: >1024px | Tablet: 768-1024px | Mobile: ≤767px<br>" .
+				"<em>Styles use !important to ensure they always apply</em>" .
+				"</div>",
+			"content_classes" =>
+				"elementor-panel-alert elementor-panel-alert-info",
 		]);
 
 		$this->add_responsive_control("columns", [
@@ -176,7 +188,7 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			],
 			"selectors" => [
 				"{{WRAPPER}} .custom-product-loop-grid" =>
-					"grid-template-columns: repeat({{VALUE}}, 1fr);",
+					"grid-template-columns: repeat({{VALUE}}, 1fr) !important;",
 			],
 		]);
 
@@ -185,10 +197,12 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"type" => \Elementor\Controls_Manager::SLIDER,
 			"size_units" => ["px"],
 			"range" => ["px" => ["min" => 0, "max" => 100]],
-			"default" => ["size" => 30],
+			"default" => ["size" => 30, "unit" => "px"],
+			"tablet_default" => ["size" => 20, "unit" => "px"],
+			"mobile_default" => ["size" => 15, "unit" => "px"],
 			"selectors" => [
 				"{{WRAPPER}} .custom-product-loop-grid" =>
-					"column-gap: {{SIZE}}{{UNIT}};",
+					"column-gap: {{SIZE}}{{UNIT}} !important;",
 			],
 		]);
 
@@ -197,10 +211,12 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"type" => \Elementor\Controls_Manager::SLIDER,
 			"size_units" => ["px"],
 			"range" => ["px" => ["min" => 0, "max" => 100]],
-			"default" => ["size" => 30],
+			"default" => ["size" => 30, "unit" => "px"],
+			"tablet_default" => ["size" => 20, "unit" => "px"],
+			"mobile_default" => ["size" => 15, "unit" => "px"],
 			"selectors" => [
 				"{{WRAPPER}} .custom-product-loop-grid" =>
-					"row-gap: {{SIZE}}{{UNIT}};",
+					"row-gap: {{SIZE}}{{UNIT}} !important;",
 			],
 		]);
 
@@ -423,13 +439,10 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		$settings = $this->get_settings_for_display();
 		$widget_id = $this->get_id();
 
-		// CRITICAL: Reset rendered products tracking
 		$this->rendered_product_ids = [];
 
-		// Get current page
 		$paged = get_query_var("paged") ? get_query_var("paged") : 1;
 
-		// Build and execute query
 		$query_args = $this->build_query_args($settings);
 		$query_args["paged"] = $paged;
 		$products_query = new WP_Query($query_args);
@@ -441,7 +454,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			return;
 		}
 
-		// Load template CSS BEFORE rendering
 		if (
 			$settings["use_custom_template"] === "yes" &&
 			!empty($settings["template_id"])
@@ -457,6 +469,13 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			" elementor-grid-mobile-" . ($settings["columns_mobile"] ?? "1");
 
 		$pagination_type = $settings["pagination_type"];
+
+		// Prepare settings for JavaScript
+		$js_settings = [
+			"columns" => $settings["columns"],
+			"columns_tablet" => $settings["columns_tablet"] ?? "2",
+			"columns_mobile" => $settings["columns_mobile"] ?? "1",
+		];
 		?>
         <div class="custom-product-loop-wrapper"
              id="product-loop-<?php echo esc_attr($widget_id); ?>"
@@ -470,15 +489,20 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
              	base64_encode(json_encode($query_args)),
              ); ?>"
              data-settings="<?php echo esc_attr(
-             	base64_encode(json_encode($settings)),
+             	base64_encode(json_encode($js_settings)),
              ); ?>">
 
             <div class="<?php echo esc_attr($grid_class); ?>"
                  data-widget-id="<?php echo esc_attr($widget_id); ?>"
-                 data-columns="<?php echo esc_attr($settings["columns"]); ?>">
+                 data-columns="<?php echo esc_attr($settings["columns"]); ?>"
+                 data-columns-tablet="<?php echo esc_attr(
+                 	$settings["columns_tablet"] ?? "2",
+                 ); ?>"
+                 data-columns-mobile="<?php echo esc_attr(
+                 	$settings["columns_mobile"] ?? "1",
+                 ); ?>">
 
                 <?php
-                // CRITICAL: Track and render unique products only
                 while ($products_query->have_posts()) {
 
                 	$products_query->the_post();
@@ -490,15 +514,10 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
                 	$product_id = $product->get_id();
 
-                	// CRITICAL FIX: Skip if already rendered
                 	if (in_array($product_id, $this->rendered_product_ids)) {
-                		error_log(
-                			"Skipping duplicate product ID: " . $product_id,
-                		);
                 		continue;
                 	}
 
-                	// Mark as rendered
                 	$this->rendered_product_ids[] = $product_id;
 
                 	$product_data = $this->get_product_data_attributes(
@@ -682,7 +701,7 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"post_status" => "publish",
 			"posts_per_page" => $settings["posts_per_page"],
 			"ignore_sticky_posts" => true,
-			"no_found_rows" => false, // CRITICAL: Need this for pagination
+			"no_found_rows" => false,
 		];
 
 		switch ($settings["orderby"]) {
