@@ -1,7 +1,7 @@
 <?php
 /**
- * Custom Product Loop Grid Widget - FULLY RESPONSIVE
- * Matches Elementor breakpoints: Desktop (>1024px), Tablet (768-1024px), Mobile (≤767px)
+ * Custom Product Loop Grid Widget - WITH TAG QUERY SUPPORT
+ * Shows all products with the same tags when clicking a tag link
  *
  * @package HelloElementorChild
  */
@@ -72,6 +72,19 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 				),
 				"categories" => __("By Categories", "hello-elementor-child"),
 				"tags" => __("By Tags", "hello-elementor-child"),
+				"current_query" => __("Current Query", "hello-elementor-child"),
+			],
+		]);
+
+		$this->add_control("query_notice", [
+			"type" => \Elementor\Controls_Manager::RAW_HTML,
+			"raw" =>
+				'<div style="background: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; margin-bottom: 15px;">' .
+				"<strong>📌 Current Query:</strong><br>" .
+				"Inherits the current page query. Works on archive pages (tags, categories, search results, etc.)." .
+				"</div>",
+			"condition" => [
+				"query_type" => "current_query",
 			],
 		]);
 
@@ -155,21 +168,9 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
 		$this->end_controls_section();
 
-		// LAYOUT SETTINGS - FULLY RESPONSIVE WITH !important
+		// LAYOUT SETTINGS
 		$this->start_controls_section("section_layout", [
 			"label" => __("Layout", "hello-elementor-child"),
-		]);
-
-		$this->add_control("responsive_notice", [
-			"type" => \Elementor\Controls_Manager::RAW_HTML,
-			"raw" =>
-				'<div style="background: #e3f2fd; padding: 10px; border-left: 4px solid #2196f3; margin-bottom: 15px;">' .
-				"<strong>📱 Responsive Settings (!important)</strong><br>" .
-				"Desktop: >1024px | Tablet: 768-1024px | Mobile: ≤767px<br>" .
-				"<em>Styles use !important to ensure they always apply</em>" .
-				"</div>",
-			"content_classes" =>
-				"elementor-panel-alert elementor-panel-alert-info",
 		]);
 
 		$this->add_responsive_control("columns", [
@@ -251,38 +252,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			],
 		]);
 
-		$this->add_control("loading_text", [
-			"label" => __("Loading Text", "hello-elementor-child"),
-			"type" => \Elementor\Controls_Manager::TEXT,
-			"default" => __("Loading...", "hello-elementor-child"),
-			"condition" => [
-				"pagination_type" => ["load_more", "infinite"],
-			],
-		]);
-
-		$this->add_control("no_more_text", [
-			"label" => __("No More Products Text", "hello-elementor-child"),
-			"type" => \Elementor\Controls_Manager::TEXT,
-			"default" => __("No more products", "hello-elementor-child"),
-			"condition" => [
-				"pagination_type" => ["load_more", "infinite"],
-			],
-		]);
-
-		$this->add_control("infinite_scroll_threshold", [
-			"label" => __(
-				"Scroll Threshold (px from bottom)",
-				"hello-elementor-child",
-			),
-			"type" => \Elementor\Controls_Manager::NUMBER,
-			"default" => 300,
-			"min" => 0,
-			"max" => 2000,
-			"condition" => [
-				"pagination_type" => "infinite",
-			],
-		]);
-
 		$this->end_controls_section();
 
 		// TEMPLATE SETTINGS
@@ -334,103 +303,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			],
 		]);
 
-		$this->add_responsive_control("grid_padding", [
-			"label" => __("Padding", "hello-elementor-child"),
-			"type" => \Elementor\Controls_Manager::DIMENSIONS,
-			"size_units" => ["px", "em", "%"],
-			"selectors" => [
-				"{{WRAPPER}} .custom-product-loop-grid" =>
-					"padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};",
-			],
-		]);
-
-		$this->end_controls_section();
-
-		// PAGINATION BUTTON STYLE
-		$this->start_controls_section("section_pagination_style", [
-			"label" => __("Pagination Style", "hello-elementor-child"),
-			"tab" => \Elementor\Controls_Manager::TAB_STYLE,
-			"condition" => [
-				"pagination_type" => ["load_more", "numbers"],
-			],
-		]);
-
-		$this->add_group_control(
-			\Elementor\Group_Control_Typography::get_type(),
-			[
-				"name" => "pagination_typography",
-				"selector" =>
-					"{{WRAPPER}} .loop-load-more-btn, {{WRAPPER}} .loop-pagination a",
-			],
-		);
-
-		$this->add_control("pagination_text_color", [
-			"label" => __("Text Color", "hello-elementor-child"),
-			"type" => \Elementor\Controls_Manager::COLOR,
-			"default" => "#ffffff",
-			"selectors" => [
-				"{{WRAPPER}} .loop-load-more-btn" => "color: {{VALUE}};",
-				"{{WRAPPER}} .loop-pagination a" => "color: {{VALUE}};",
-			],
-		]);
-
-		$this->add_control("pagination_bg_color", [
-			"label" => __("Background Color", "hello-elementor-child"),
-			"type" => \Elementor\Controls_Manager::COLOR,
-			"default" => "#1e1e1e",
-			"selectors" => [
-				"{{WRAPPER}} .loop-load-more-btn" =>
-					"background-color: {{VALUE}};",
-				"{{WRAPPER}} .loop-pagination a" =>
-					"background-color: {{VALUE}};",
-			],
-		]);
-
-		$this->add_control("pagination_hover_color", [
-			"label" => __("Hover Background Color", "hello-elementor-child"),
-			"type" => \Elementor\Controls_Manager::COLOR,
-			"default" => "#333333",
-			"selectors" => [
-				"{{WRAPPER}} .loop-load-more-btn:hover" =>
-					"background-color: {{VALUE}};",
-				"{{WRAPPER}} .loop-pagination a:hover" =>
-					"background-color: {{VALUE}};",
-			],
-		]);
-
-		$this->add_responsive_control("pagination_padding", [
-			"label" => __("Padding", "hello-elementor-child"),
-			"type" => \Elementor\Controls_Manager::DIMENSIONS,
-			"size_units" => ["px", "em"],
-			"default" => [
-				"top" => 12,
-				"right" => 30,
-				"bottom" => 12,
-				"left" => 30,
-				"unit" => "px",
-			],
-			"selectors" => [
-				"{{WRAPPER}} .loop-load-more-btn" =>
-					"padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};",
-				"{{WRAPPER}} .loop-pagination a" =>
-					"padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};",
-			],
-		]);
-
-		$this->add_control("pagination_border_radius", [
-			"label" => __("Border Radius", "hello-elementor-child"),
-			"type" => \Elementor\Controls_Manager::SLIDER,
-			"size_units" => ["px"],
-			"range" => ["px" => ["min" => 0, "max" => 50]],
-			"default" => ["size" => 4],
-			"selectors" => [
-				"{{WRAPPER}} .loop-load-more-btn" =>
-					"border-radius: {{SIZE}}{{UNIT}};",
-				"{{WRAPPER}} .loop-pagination a" =>
-					"border-radius: {{SIZE}}{{UNIT}};",
-			],
-		]);
-
 		$this->end_controls_section();
 	}
 
@@ -469,13 +341,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			" elementor-grid-mobile-" . ($settings["columns_mobile"] ?? "1");
 
 		$pagination_type = $settings["pagination_type"];
-
-		// Prepare settings for JavaScript
-		$js_settings = [
-			"columns" => $settings["columns"],
-			"columns_tablet" => $settings["columns_tablet"] ?? "2",
-			"columns_mobile" => $settings["columns_mobile"] ?? "1",
-		];
 		?>
         <div class="custom-product-loop-wrapper"
              id="product-loop-<?php echo esc_attr($widget_id); ?>"
@@ -487,20 +352,11 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
              data-current-page="<?php echo esc_attr($paged); ?>"
              data-query="<?php echo esc_attr(
              	base64_encode(json_encode($query_args)),
-             ); ?>"
-             data-settings="<?php echo esc_attr(
-             	base64_encode(json_encode($js_settings)),
              ); ?>">
 
             <div class="<?php echo esc_attr($grid_class); ?>"
                  data-widget-id="<?php echo esc_attr($widget_id); ?>"
-                 data-columns="<?php echo esc_attr($settings["columns"]); ?>"
-                 data-columns-tablet="<?php echo esc_attr(
-                 	$settings["columns_tablet"] ?? "2",
-                 ); ?>"
-                 data-columns-mobile="<?php echo esc_attr(
-                 	$settings["columns_mobile"] ?? "1",
-                 ); ?>">
+                 data-columns="<?php echo esc_attr($settings["columns"]); ?>">
 
                 <?php
                 while ($products_query->have_posts()) {
@@ -575,125 +431,9 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
         <?php
 	}
 
-	private function render_pagination($query, $settings, $widget_id)
-	{
-		$pagination_type = $settings["pagination_type"];
-
-		if ($pagination_type === "none" || $query->max_num_pages <= 1) {
-			return;
-		}
-
-		echo '<div class="loop-pagination-wrapper" style="text-align: center; margin-top: 40px;">';
-
-		switch ($pagination_type) {
-			case "load_more":
-				$this->render_load_more_button($query, $settings, $widget_id);
-				break;
-
-			case "infinite":
-				$this->render_infinite_scroll($query, $settings, $widget_id);
-				break;
-
-			case "numbers":
-				$this->render_page_numbers($query, $settings);
-				break;
-		}
-
-		echo "</div>";
-	}
-
-	private function render_load_more_button($query, $settings, $widget_id)
-	{
-		if ($query->max_num_pages <= 1) {
-			return;
-		} ?>
-        <button class="loop-load-more-btn"
-                data-widget-id="<?php echo esc_attr($widget_id); ?>"
-                data-page="1"
-                data-max-pages="<?php echo esc_attr($query->max_num_pages); ?>">
-            <?php echo esc_html($settings["load_more_text"]); ?>
-        </button>
-        <div class="loop-loading-message" style="display: none; margin-top: 20px; font-size: 14px;">
-            <?php echo esc_html($settings["loading_text"]); ?>
-        </div>
-        <div class="loop-no-more-message" style="display: none; margin-top: 20px; font-size: 14px; color: #999;">
-            <?php echo esc_html($settings["no_more_text"]); ?>
-        </div>
-        <?php
-	}
-
-	private function render_infinite_scroll($query, $settings, $widget_id)
-	{
-		?>
-        <div class="loop-infinite-scroll-trigger"
-             data-widget-id="<?php echo esc_attr($widget_id); ?>"
-             data-page="1"
-             data-max-pages="<?php echo esc_attr($query->max_num_pages); ?>"
-             data-threshold="<?php echo esc_attr(
-             	$settings["infinite_scroll_threshold"],
-             ); ?>"
-             style="height: 1px; visibility: hidden;"></div>
-        <div class="loop-loading-message" style="display: none; margin-top: 20px; font-size: 14px;">
-            <?php echo esc_html($settings["loading_text"]); ?>
-        </div>
-        <div class="loop-no-more-message" style="display: none; margin-top: 20px; font-size: 14px; color: #999;">
-            <?php echo esc_html($settings["no_more_text"]); ?>
-        </div>
-        <?php
-	}
-
-	private function render_page_numbers($query, $settings)
-	{
-		echo '<div class="loop-pagination loop-page-numbers">';
-		echo paginate_links([
-			"total" => $query->max_num_pages,
-			"current" => max(1, get_query_var("paged")),
-			"prev_text" => __("&laquo; Previous", "hello-elementor-child"),
-			"next_text" => __("Next &raquo;", "hello-elementor-child"),
-			"type" => "list",
-		]);
-		echo "</div>";
-	}
-
-	private function force_load_template_css($template_id)
-	{
-		if (empty($template_id) || !class_exists("\Elementor\Plugin")) {
-			return;
-		}
-
-		if (in_array($template_id, $this->loaded_templates)) {
-			return;
-		}
-
-		$this->loaded_templates[] = $template_id;
-
-		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
-		if ($css_file) {
-			$css_file->enqueue();
-		}
-
-		$this->print_template_inline_css($template_id);
-	}
-
-	private function print_template_inline_css($template_id)
-	{
-		if (empty($template_id)) {
-			return;
-		}
-
-		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
-		$css_content = $css_file ? $css_file->get_content() : "";
-
-		if (!empty($css_content)) {
-			echo "\n<!-- Template CSS: {$template_id} -->\n";
-			echo '<style id="loop-template-css-' .
-				esc_attr($template_id) .
-				'">';
-			echo $css_content;
-			echo "</style>" . "\n";
-		}
-	}
-
+	/**
+	 * NEW: Build Query Args with Current Query Support
+	 */
 	private function build_query_args($settings)
 	{
 		$args = [
@@ -704,6 +444,12 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"no_found_rows" => false,
 		];
 
+		// Handle current query (inherits from current page)
+		if ($settings["query_type"] === "current_query") {
+			return $this->get_current_query_args($args, $settings);
+		}
+
+		// Handle sorting
 		switch ($settings["orderby"]) {
 			case "price":
 				$args["orderby"] = "meta_value_num";
@@ -725,6 +471,7 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 				$args["order"] = $settings["order"];
 		}
 
+		// Handle query types
 		switch ($settings["query_type"]) {
 			case "featured":
 				$args["tax_query"] = [
@@ -777,6 +524,96 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
 		return apply_filters(
 			"custom_product_loop_query_args",
+			$args,
+			$settings,
+		);
+	}
+
+	/**
+	 * NEW: Get Current Query Args
+	 * Detects current page type and inherits its query:
+	 * - Product Tag archive → shows products with that tag
+	 * - Product Category archive → shows products in that category
+	 * - Search results → shows search results
+	 * - Shop page → shows all products
+	 */
+	private function get_current_query_args($args, $settings)
+	{
+		$args["paged"] = get_query_var("paged") ? get_query_var("paged") : 1;
+
+		// Product Tag Archive
+		if (is_product_tag()) {
+			$current_tag = get_queried_object();
+
+			if ($current_tag && !is_wp_error($current_tag)) {
+				$args["tax_query"] = [
+					[
+						"taxonomy" => "product_tag",
+						"field" => "term_id",
+						"terms" => $current_tag->term_id,
+					],
+				];
+			}
+		}
+		// Product Category Archive
+		elseif (is_product_category()) {
+			$current_category = get_queried_object();
+
+			if ($current_category && !is_wp_error($current_category)) {
+				$args["tax_query"] = [
+					[
+						"taxonomy" => "product_cat",
+						"field" => "term_id",
+						"terms" => $current_category->term_id,
+						"include_children" => true,
+					],
+				];
+			}
+		}
+		// Product Search Results
+		elseif (is_search()) {
+			$args["s"] = get_search_query();
+		}
+		// Shop Page (show all products)
+		elseif (is_shop()) {
+			// Default behavior - all products
+		}
+
+		// Apply sorting
+		switch ($settings["orderby"]) {
+			case "price":
+				$args["orderby"] = "meta_value_num";
+				$args["meta_key"] = "_price";
+				$args["order"] = $settings["order"];
+				break;
+			case "popularity":
+				$args["orderby"] = "meta_value_num";
+				$args["meta_key"] = "total_sales";
+				$args["order"] = "DESC";
+				break;
+			case "rating":
+				$args["orderby"] = "meta_value_num";
+				$args["meta_key"] = "_wc_average_rating";
+				$args["order"] = "DESC";
+				break;
+			default:
+				$args["orderby"] = $settings["orderby"];
+				$args["order"] = $settings["order"];
+		}
+
+		// Exclude out of stock if set
+		if ($settings["exclude_out_of_stock"] === "yes") {
+			if (!isset($args["meta_query"])) {
+				$args["meta_query"] = [];
+			}
+			$args["meta_query"][] = [
+				"key" => "_stock_status",
+				"value" => "instock",
+			];
+		}
+
+		return apply_filters(
+			"custom_product_loop_current_query_args",
 			$args,
 			$settings,
 		);
@@ -848,6 +685,83 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			);
 		}
 		return $output;
+	}
+
+	private function render_pagination($query, $settings, $widget_id)
+	{
+		$pagination_type = $settings["pagination_type"];
+
+		if ($pagination_type === "none" || $query->max_num_pages <= 1) {
+			return;
+		}
+
+		echo '<div class="loop-pagination-wrapper" style="text-align: center; margin-top: 40px;">';
+
+		switch ($pagination_type) { case "load_more": ?>
+                <button class="loop-load-more-btn"
+                        data-widget-id="<?php echo esc_attr($widget_id); ?>"
+                        data-page="1"
+                        data-max-pages="<?php echo esc_attr(
+                        	$query->max_num_pages,
+                        ); ?>">
+                    <?php echo esc_html($settings["load_more_text"]); ?>
+                </button>
+                <?php break;case "numbers":
+				echo '<div class="loop-pagination loop-page-numbers">';
+				echo paginate_links([
+					"total" => $query->max_num_pages,
+					"current" => max(1, get_query_var("paged")),
+					"prev_text" => __(
+						"&laquo; Previous",
+						"hello-elementor-child",
+					),
+					"next_text" => __("Next &raquo;", "hello-elementor-child"),
+					"type" => "list",
+				]);
+				echo "</div>";
+				break;
+		}
+
+		echo "</div>";
+	}
+
+	private function force_load_template_css($template_id)
+	{
+		if (empty($template_id) || !class_exists("\Elementor\Plugin")) {
+			return;
+		}
+
+		if (in_array($template_id, $this->loaded_templates)) {
+			return;
+		}
+
+		$this->loaded_templates[] = $template_id;
+
+		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
+		if ($css_file) {
+			$css_file->enqueue();
+		}
+
+		$this->print_template_inline_css($template_id);
+	}
+
+	private function print_template_inline_css($template_id)
+	{
+		if (empty($template_id)) {
+			return;
+		}
+
+		$css_file = \Elementor\Core\Files\CSS\Post::create($template_id);
+		$css_content = $css_file ? $css_file->get_content() : "";
+
+		if (!empty($css_content)) {
+			echo "\n<!-- Template CSS: {$template_id} -->\n";
+			echo '<style id="loop-template-css-' .
+				esc_attr($template_id) .
+				'">';
+			echo $css_content;
+			echo "</style>" . "\n";
+		}
 	}
 
 	private function render_elementor_template($template_id)
