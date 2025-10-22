@@ -213,8 +213,8 @@ function get_all_product_attributes($product)
 }
 
 /**
- * OPTIMIZED: Output only necessary products data
- * Reduces redundancy and improves performance
+ * ✅ FIXED: Output Products Data JSON - ONLY PUBLISHED PRODUCTS
+ * This ensures only published products are available to the filter
  */
 add_action("wp_footer", "output_products_data_json", 100);
 function output_products_data_json()
@@ -222,17 +222,13 @@ function output_products_data_json()
 	if (!class_exists("WooCommerce")) {
 		return;
 	}
-
-	global $post;
-
 	$products_data = [];
-
-	// Determine which products to load based on context
+	// ✅ CRITICAL: Build args to get ONLY published products
 	$args = [
 		"limit" => -1,
-		"status" => "publish",
+		"status" => "publish", // ✅ ONLY PUBLISHED
+		"return" => "ids", // More efficient
 	];
-
 	// If we're on a specific category page, only load those products
 	if (is_product_category()) {
 		$category = get_queried_object();
@@ -243,26 +239,47 @@ function output_products_data_json()
 		$tag = get_queried_object();
 		$args["tag"] = [$tag->slug];
 	}
+	// ✅ Get ONLY published product IDs
+	$product_ids = wc_get_products($args);
+	// ✅ Double check each product status before adding to data
+	foreach ($product_ids as $product_id) {
+		$product = wc_get_product($product_id);
 
-	$products = wc_get_products($args);
-
-	foreach ($products as $product) {
+		// ✅ CRITICAL: Skip if product doesn't exist or isn't published
+		if (!$product || $product->get_status() !== "publish") {
+			continue;
+		}
 		$product_data = get_all_product_attributes($product);
+
 		if (!empty($product_data)) {
-			$products_data[$product->get_id()] = $product_data;
+			$products_data[$product_id] = $product_data;
 		}
 	}
-
 	if (empty($products_data)) {
 		return;
 	}
+	// ✅ Log for debugging (remove in production)
+	error_log(
+		"📦 Products Data Output: " .
+			count($products_data) .
+			" published products",
+	);
 	?>
 <script id="loop-grid-products-data" type="application/json">
 <?php echo wp_json_encode($products_data); ?>
 </script>
 <script>
 window.loopGridProductsData = <?php echo wp_json_encode($products_data); ?>;
-console.log('%c📦 Products data loaded:', 'color: #4CAF50; font-weight: bold;', Object.keys(window.loopGridProductsData).length + ' products');
+console.log('%c📦 Products data loaded:', 'color: #4CAF50; font-weight: bold;', Object.keys(window.loopGridProductsData).length + ' PUBLISHED products');
+console.log('%c✅ Only published products included', 'color: #4CAF50;');
+// ✅ Debug helper - check product statuses
+if (window.location.search.includes('debug=products')) {
+    console.group('%c🔍 Product Status Check', 'color: #2196F3; font-weight: bold;');
+    Object.entries(window.loopGridProductsData).forEach(([id, data]) => {
+        console.log(`Product ${id}: ${data.title} - Status: Published ✅`);
+    });
+    console.groupEnd();
+}
 </script>
 <?php
 }
@@ -360,28 +377,58 @@ function enqueue_all_filter_assets()
 // AJAX PAGINATION HANDLER
 // =============================================================================
 
-add_action("wp_ajax_load_more_products", "ajax_load_more_products");
-add_action("wp_ajax_nopriv_load_more_products", "ajax_load_more_products");
+add_action("wp_ajax_load_more_products", "ajax_load_more_products_fixed");
+add_action(
+	"wp_ajax_nopriv_load_more_products",
+	"ajax_load_more_products_fixed",
+);
 
-function ajax_load_more_products()
+function ajax_load_more_products_fixed()
 {
 	// Verify nonce
-	check_ajax_referer("loop_grid_pagination_nonce", "nonce");
+	if (
+		!isset($_POST["nonce"]) ||
+		!wp_verify_nonce($_POST["nonce"], "loop_grid_pagination_nonce")
+	) {
+		wp_send_json_error([
+			"message" => "Security check failed",
+		]);
+	}
 
 	// Get parameters
 	$page = isset($_POST["page"]) ? intval($_POST["page"]) : 1;
+
+	// ✅ FIXED: Properly decode query args
 	$query_args = isset($_POST["query_args"])
 		? json_decode(stripslashes($_POST["query_args"]), true)
 		: [];
+
+	// ✅ FIXED: Properly decode settings
 	$settings = isset($_POST["settings"])
 		? json_decode(stripslashes($_POST["settings"]), true)
 		: [];
+
 	$widget_id = isset($_POST["widget_id"])
 		? sanitize_text_field($_POST["widget_id"])
 		: "";
 
+	// Validate query args
+	if (empty($query_args) || !is_array($query_args)) {
+		wp_send_json_error([
+			"message" => "Invalid query arguments",
+		]);
+	}
+
+	// ✅ CRITICAL: Ensure only published products
+	$query_args["post_status"] = "publish";
+	$query_args["post_type"] = "product";
+
 	// Update page number
 	$query_args["paged"] = $page;
+
+	// Log for debugging (remove in production)
+	error_log("Load More - Page: " . $page);
+	error_log("Load More - Query Args: " . print_r($query_args, true));
 
 	// Execute query
 	$products_query = new WP_Query($query_args);
@@ -473,17 +520,22 @@ function ajax_load_more_products()
 <article class="e-loop-item product-loop-item product-id-<?php echo esc_attr(
 	$product->get_id(),
 ); ?>" <?php echo $data_attrs; ?>>
-	<?php if (
+	<?php // Check if custom template should be used
+
+		if (
  	!empty($settings["use_custom_template"]) &&
  	$settings["use_custom_template"] === "yes" &&
- 	!empty($settings["template_id"])
+ 	!empty($settings["template_id"]) &&
+ 	class_exists("\Elementor\Plugin")
  ) {
+ 	// Render Elementor template
  	echo \Elementor\Plugin::instance()->frontend->get_builder_content(
  		$settings["template_id"],
  		true,
  	);
  } else {
- 	render_default_product_card_ajax($product);
+ 	// Render default card
+ 	render_default_product_card_fixed($product);
  } ?>
 </article>
 <?php
@@ -497,10 +549,14 @@ function ajax_load_more_products()
 		"html" => $html,
 		"page" => $page,
 		"max_pages" => $products_query->max_num_pages,
+		"found_posts" => $products_query->found_posts,
 	]);
 }
 
-function render_default_product_card_ajax($product)
+/**
+ * Render default product card for AJAX
+ */
+function render_default_product_card_fixed($product)
 {
 	$is_on_sale = $product->is_on_sale();
 	$tags = get_the_terms($product->get_id(), "product_tag");

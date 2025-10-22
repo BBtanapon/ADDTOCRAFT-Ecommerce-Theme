@@ -1,7 +1,7 @@
 /**
- * Loop Grid Filter - COMPLETE FULLY RESPONSIVE VERSION
- * Supports Elementor breakpoints
- * FIXED: Mobile filter toggle works multiple times
+ * Loop Grid Filter - FIXED VERSION
+ * ✅ Only filters published products
+ * ✅ Excludes trash and draft products
  */
 
 (function ($) {
@@ -21,7 +21,7 @@
 				tablet: 1024,
 			};
 
-			// Store UNIQUE products only
+			// Store UNIQUE products only (published only)
 			this.uniqueProducts = new Map();
 
 			// Grid properties
@@ -42,12 +42,10 @@
 		}
 
 		init() {
-			console.log(
-				"🎯 RESPONSIVE FILTER: Initializing with Product ID deduplication",
-			);
+			console.log("🎯 FILTER: Initializing (Published Products Only)");
 
 			this.findTargetGrid();
-			this.setupMobileToggle(); // CRITICAL: Initialize mobile toggle FIRST
+			this.setupMobileToggle();
 
 			if (!this.targetGrid || !this.targetGrid.length) {
 				console.warn("⚠️ Target grid not found");
@@ -56,7 +54,7 @@
 
 			const initFilter = () => {
 				if (this.uniqueProducts.size === 0) {
-					console.log("📸 Capturing unique products");
+					console.log("📸 Capturing published products only");
 					this.captureUniqueProducts();
 					this.initPriceSliders();
 					this.bindEvents();
@@ -78,7 +76,6 @@
 			const deviceType = this.getDeviceType();
 			const container = this.targetGrid[0];
 
-			// Try to get from data attributes
 			if (container) {
 				if (
 					deviceType === "mobile" &&
@@ -95,7 +92,6 @@
 				}
 			}
 
-			// Fallback defaults
 			if (deviceType === "mobile") return 1;
 			if (deviceType === "tablet") return 2;
 			return 4;
@@ -140,6 +136,9 @@
 			}
 		}
 
+		/**
+		 * ✅ FIXED: Only capture published products
+		 */
 		captureUniqueProducts() {
 			this.gridClasses = this.targetGrid.attr("class") || "";
 			this.gridStyles = this.targetGrid.attr("style") || "";
@@ -155,6 +154,7 @@
 			console.log(`   Found ${items.length} DOM elements`);
 
 			let skippedDuplicates = 0;
+			let skippedNonPublished = 0;
 
 			items.each((index, element) => {
 				const $element = $(element);
@@ -165,9 +165,18 @@
 					return;
 				}
 
+				// ✅ CRITICAL: Check if product is published
+				if (!this.isProductPublished(productId)) {
+					console.log(
+						`   🚫 Skipping non-published product: ${productId}`,
+					);
+					skippedNonPublished++;
+					return;
+				}
+
 				if (this.uniqueProducts.has(productId)) {
 					console.log(
-						`   🚫 Skipping duplicate product ID: ${productId} (item ${index})`,
+						`   🚫 Skipping duplicate product ID: ${productId}`,
 					);
 					skippedDuplicates++;
 					return;
@@ -188,13 +197,32 @@
 			});
 
 			console.log(
-				`\n✅ Captured ${this.uniqueProducts.size} UNIQUE products`,
+				`\n✅ Captured ${this.uniqueProducts.size} PUBLISHED products`,
 			);
 			if (skippedDuplicates > 0) {
+				console.log(`   🚫 Skipped ${skippedDuplicates} duplicates`);
+			}
+			if (skippedNonPublished > 0) {
 				console.log(
-					`   🚫 Skipped ${skippedDuplicates} duplicate items`,
+					`   🚫 Skipped ${skippedNonPublished} non-published products`,
 				);
 			}
+		}
+
+		/**
+		 * ✅ NEW: Check if product is published
+		 */
+		isProductPublished(productId) {
+			// Check in the global products data
+			if (
+				window.loopGridProductsData &&
+				window.loopGridProductsData[productId]
+			) {
+				// If product is in the data, it's published
+				return true;
+			}
+			// If not in data, assume not published
+			return false;
 		}
 
 		extractProductId($element) {
@@ -219,6 +247,31 @@
 				}
 			}
 
+			const addToCartBtn = $element.find("[data-product_id]");
+			if (addToCartBtn.length) {
+				return String(addToCartBtn.data("product_id"));
+			}
+
+			const productLink = $element.find('a[href*="/product/"]');
+			if (productLink.length) {
+				const href = productLink.attr("href");
+				const match = href.match(/product\/([^\/]+)/);
+				if (match) {
+					const slug = match[1];
+					for (const [id, data] of Object.entries(
+						window.loopGridProductsData || {},
+					)) {
+						if (
+							data.title &&
+							data.title.toLowerCase().replace(/\s+/g, "-") ===
+								slug
+						) {
+							return id;
+						}
+					}
+				}
+			}
+
 			return null;
 		}
 
@@ -232,7 +285,7 @@
 				price: 0,
 			};
 
-			// Title - try multiple sources
+			// Title
 			const $title = $element
 				.find(
 					".elementor-heading-title, h2, h3, h4, .product-title, .woocommerce-loop-product__title",
@@ -242,7 +295,6 @@
 				data.title = $title.text().trim().toLowerCase();
 			}
 
-			// Fallback to data attribute
 			if (!data.title) {
 				data.title = (
 					$element.data("title") ||
@@ -593,7 +645,6 @@
 			const container = this.targetGrid[0];
 			container.innerHTML = "";
 
-			// Get responsive settings
 			const columns = this.getResponsiveColumns();
 			const gap = this.getResponsiveGap();
 			const deviceType = this.getDeviceType();
@@ -602,7 +653,6 @@
 				`   Device: ${deviceType}, Columns: ${columns}, Gap: ${gap}`,
 			);
 
-			// Apply responsive grid
 			this.targetGrid.css({
 				display: "grid",
 				"grid-template-columns": `repeat(${columns}, 1fr)`,
@@ -616,10 +666,8 @@
 				"box-sizing": "border-box",
 			});
 
-			// Track rendered IDs
 			const renderedIds = new Set();
 
-			// Add products
 			products.forEach((product) => {
 				if (renderedIds.has(product.id)) {
 					console.warn(
@@ -637,17 +685,14 @@
 				`   ✅ Rendered ${renderedIds.size} unique products to DOM`,
 			);
 
-			// Animate
 			this.animateItems();
 
-			// Show/hide no results
 			if (products.length === 0) {
 				this.showNoResults();
 			} else {
 				this.hideNoResults();
 			}
 
-			// Reinitialize widgets
 			this.reinitializeWidgets();
 		}
 
@@ -756,10 +801,6 @@
 						}, cycleSpeed);
 					}
 				});
-
-				console.log(
-					`      ✅ Gallery initialized with ${totalImages} images`,
-				);
 			});
 		}
 
@@ -807,7 +848,7 @@
 		}
 
 		resetToUniqueProducts() {
-			console.log("🔄 RESET: Showing all unique products");
+			console.log("🔄 RESET: Showing all unique published products");
 
 			this.widget.find(".loop-filter-search").val("");
 			this.widget.find(".loop-filter-sort").val("date");
@@ -835,12 +876,12 @@
 			allUniqueProducts.sort((a, b) => a.index - b.index);
 
 			console.log(
-				`   📦 Resetting to ${allUniqueProducts.length} unique products`,
+				`   📦 Resetting to ${allUniqueProducts.length} unique published products`,
 			);
 
 			this.renderProducts(allUniqueProducts);
 
-			console.log("✅ Reset complete - showing all unique products");
+			console.log("✅ Reset complete");
 		}
 
 		setupMobileToggle() {
@@ -851,7 +892,6 @@
 			let toggleBtn = $(".filter-toggle-btn");
 			let overlay = $(".filter-overlay");
 
-			// FIXED: Always ensure elements exist
 			if (toggleBtn.length === 0) {
 				const newToggleBtn = $(
 					'<button class="filter-toggle-btn" aria-label="Open Filters">' +
@@ -870,49 +910,41 @@
 				overlay = $(".filter-overlay");
 			}
 
-			// FIXED: Clean up old event listeners
 			$(document).off("click.filter-toggle");
 			$(document).off("click.filter-close");
 			$(document).off("click.filter-overlay");
 			this.widget.off("click.filter-sidebar");
 
-			// FIXED: Bind toggle button click with namespace
 			$(document).on(
 				"click.filter-toggle",
 				".filter-toggle-btn",
 				function (e) {
 					e.preventDefault();
 					e.stopPropagation();
-					console.log("🔓 Toggle button clicked - Opening filter");
 					self.openMobileFilter();
 				},
 			);
 
-			// FIXED: Bind close button click with namespace
 			this.widget.on(
 				"click.filter-close",
 				".filter-close-btn",
 				function (e) {
 					e.preventDefault();
 					e.stopPropagation();
-					console.log("🔐 Close button clicked - Closing filter");
 					self.closeMobileFilter();
 				},
 			);
 
-			// FIXED: Bind overlay click with namespace
 			$(document).on(
 				"click.filter-overlay",
 				".filter-overlay",
 				function (e) {
 					e.preventDefault();
 					e.stopPropagation();
-					console.log("🔐 Overlay clicked - Closing filter");
 					self.closeMobileFilter();
 				},
 			);
 
-			// FIXED: Prevent sidebar clicks from closing
 			this.widget.on(
 				"click.filter-sidebar",
 				".loop-filter-sidebar",
@@ -920,48 +952,26 @@
 					e.stopPropagation();
 				},
 			);
-
-			console.log("   ✅ Mobile toggle initialized");
 		}
 
 		openMobileFilter() {
 			const sidebar = this.widget.find(".loop-filter-sidebar");
 			const overlay = $(".filter-overlay");
 
-			console.log("✅ Opening mobile filter");
-
-			// Add active class
 			sidebar.addClass("active");
 			overlay.addClass("active");
-
-			// Force display
 			overlay.stop(true, true).fadeIn(300);
-
-			// Prevent body scroll
 			$("body").css("overflow", "hidden");
-
-			console.log("   Sidebar active:", sidebar.hasClass("active"));
-			console.log("   Overlay active:", overlay.hasClass("active"));
 		}
 
 		closeMobileFilter() {
 			const sidebar = this.widget.find(".loop-filter-sidebar");
 			const overlay = $(".filter-overlay");
 
-			console.log("✅ Closing mobile filter");
-
-			// Remove active class
 			sidebar.removeClass("active");
 			overlay.removeClass("active");
-
-			// Animate out
 			overlay.stop(true, true).fadeOut(300);
-
-			// Restore body scroll
 			$("body").css("overflow", "");
-
-			console.log("   Sidebar active:", sidebar.hasClass("active"));
-			console.log("   Overlay active:", overlay.hasClass("active"));
 		}
 	}
 
@@ -982,7 +992,6 @@
 	});
 
 	$(document).ready(function () {
-		// Initialize filters on page load
 		setTimeout(function () {
 			$(".loop-grid-filter-widget").each(function () {
 				if (!$(this).data("filter-initialized")) {
@@ -991,19 +1000,8 @@
 				}
 			});
 		}, 500);
-
-		// Re-initialize on dynamic content load (AJAX)
-		$(document).on("elementor/frontend/init", function () {
-			$(".loop-grid-filter-widget").each(function () {
-				if (!$(this).data("filter-initialized")) {
-					new LoopGridFilter(this);
-					$(this).data("filter-initialized", true);
-				}
-			});
-		});
 	});
 
-	// Handle window resize for responsive adjustments
 	$(window).on("resize", function () {
 		$(".loop-grid-filter-widget").each(function () {
 			const widget = $(this).data("filter-instance");
@@ -1013,154 +1011,3 @@
 		});
 	});
 })(jQuery);
-/**
- * MOBILE FILTER TOGGLE - COMPLETE FIX v3
- * Removes inline display:none and uses CSS classes only
- * Add this to the END of your loop-grid-filter.js file
- */
-
-function initMobileFilterToggle() {
-	console.log("🎯 Initializing mobile filter toggle - FINAL FIX");
-
-	const $sidebar = $(".filter-sidebar, .loop-filter-sidebar");
-	const $toggleBtn = $(".filter-toggle-btn");
-	const $overlay = $(".filter-overlay");
-	const $closeBtn = $(".filter-close-btn");
-
-	// ===== CRITICAL: REMOVE ALL INLINE STYLES =====
-	$sidebar.each(function () {
-		// Remove the problematic inline style
-		$(this).css({
-			display: "",
-			visibility: "",
-			opacity: "",
-			left: "",
-			top: "",
-			position: "",
-			transform: "",
-		});
-		$(this).removeAttr("style");
-		console.log("✅ Removed inline styles from sidebar");
-	});
-
-	// ===== ENSURE SIDEBAR IS NOT HIDDEN BY DEFAULT =====
-	// The CSS should control this, not inline styles
-	$sidebar.removeClass("hidden-by-inline");
-
-	// ===== CLEAN UP OLD EVENT LISTENERS =====
-	$(document).off("click.filter-toggle");
-	$(document).off("click.filter-close");
-	$(document).off("click.filter-overlay");
-	$sidebar.off("click.filter-sidebar");
-
-	// ===== OPEN FILTER (Toggle Button Click) =====
-	$(document).on("click.filter-toggle", ".filter-toggle-btn", function (e) {
-		e.preventDefault();
-		e.stopPropagation();
-
-		console.log("📱 Toggle button clicked - Opening filter");
-
-		// Ensure no inline styles block the opening
-		$sidebar.removeAttr("style");
-
-		// Add active class (CSS handles the rest)
-		$sidebar.addClass("active");
-		$overlay.addClass("active");
-
-		// Prevent body scroll
-		$("body").css("overflow", "hidden");
-
-		console.log("✅ Sidebar active class added");
-	});
-
-	// ===== CLOSE FILTER (Close Button Click) =====
-	$(document).on("click.filter-close", ".filter-close-btn", function (e) {
-		e.preventDefault();
-		e.stopPropagation();
-
-		console.log("🔐 Close button clicked - Closing filter");
-
-		// Remove active class
-		$sidebar.removeClass("active");
-		$overlay.removeClass("active");
-
-		// Restore body scroll
-		$("body").css("overflow", "");
-
-		console.log("✅ Sidebar active class removed");
-	});
-
-	// ===== CLOSE FILTER (Overlay Click) =====
-	$(document).on("click.filter-overlay", ".filter-overlay", function (e) {
-		e.preventDefault();
-		e.stopPropagation();
-
-		console.log("📱 Overlay clicked - Closing filter");
-
-		$sidebar.removeClass("active");
-		$overlay.removeClass("active");
-		$("body").css("overflow", "");
-	});
-
-	// ===== PREVENT SIDEBAR CONTENT FROM CLOSING =====
-	$(document).on(
-		"click.filter-sidebar",
-		".filter-sidebar, .loop-filter-sidebar",
-		function (e) {
-			e.stopPropagation();
-		},
-	);
-
-	// ===== CLOSE SIDEBAR ON DESKTOP RESIZE =====
-	$(window).on("resize", function () {
-		if (window.innerWidth > 1024) {
-			console.log("📐 Resized to desktop - closing sidebar");
-			$sidebar.removeClass("active");
-			$overlay.removeClass("active");
-			$("body").css("overflow", "");
-		}
-	});
-
-	console.log("✅ Mobile filter toggle fully initialized - NO INLINE STYLES");
-}
-
-// ===== INIT ON DOCUMENT READY =====
-$(document).ready(function () {
-	setTimeout(initMobileFilterToggle, 500); // Reduced from 1000ms
-});
-
-// ===== RE-INIT ON ELEMENTOR FRONTEND =====
-$(window).on("elementor/frontend/init", function () {
-	setTimeout(initMobileFilterToggle, 1000);
-});
-
-// ===== RE-INIT ON AJAX COMPLETE =====
-$(document).on("ajaxComplete", function () {
-	setTimeout(initMobileFilterToggle, 300);
-});
-
-// ===== MUTATION OBSERVER FOR DYNAMIC CONTENT =====
-if (typeof MutationObserver !== "undefined") {
-	const observer = new MutationObserver(function (mutations) {
-		mutations.forEach(function (mutation) {
-			// Check if new sidebar was added
-			if (
-				mutation.type === "childList" &&
-				$(mutation.addedNodes).find(
-					".filter-sidebar, .loop-filter-sidebar",
-				).length
-			) {
-				console.log("🔄 New sidebar detected - reinitializing");
-				setTimeout(initMobileFilterToggle, 300);
-			}
-		});
-	});
-
-	// Start observing
-	$(document).ready(function () {
-		observer.observe(document.body, {
-			childList: true,
-			subtree: true,
-		});
-	});
-}

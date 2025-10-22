@@ -1,7 +1,9 @@
 <?php
 /**
- * Custom Product Loop Grid Widget - WITH TAG QUERY SUPPORT
- * Shows all products with the same tags when clicking a tag link
+ * Custom Product Loop Grid Widget - FIXED VERSION
+ * ✅ Working Load More pagination
+ * ✅ Show All Products option
+ * ✅ Only published products
  *
  * @package HelloElementorChild
  */
@@ -88,12 +90,26 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			],
 		]);
 
+		// ✅ NEW: Show All Products Option
+		$this->add_control("show_all_products", [
+			"label" => __("Show All Products", "hello-elementor-child"),
+			"type" => \Elementor\Controls_Manager::SWITCHER,
+			"default" => "no",
+			"description" => __(
+				"Enable to show all products without limit",
+				"hello-elementor-child",
+			),
+		]);
+
 		$this->add_control("posts_per_page", [
 			"label" => __("Products Per Page", "hello-elementor-child"),
 			"type" => \Elementor\Controls_Manager::NUMBER,
 			"default" => 12,
 			"min" => 1,
 			"max" => 100,
+			"condition" => [
+				"show_all_products!" => "yes",
+			],
 		]);
 
 		$categories = get_terms([
@@ -241,6 +257,9 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 					"hello-elementor-child",
 				),
 			],
+			"condition" => [
+				"show_all_products!" => "yes",
+			],
 		]);
 
 		$this->add_control("load_more_text", [
@@ -249,6 +268,7 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 			"default" => __("Load More", "hello-elementor-child"),
 			"condition" => [
 				"pagination_type" => "load_more",
+				"show_all_products!" => "yes",
 			],
 		]);
 
@@ -313,10 +333,19 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 
 		$this->rendered_product_ids = [];
 
-		$paged = get_query_var("paged") ? get_query_var("paged") : 1;
+		// ✅ Handle Show All Products
+		if ($settings["show_all_products"] === "yes") {
+			$paged = 1;
+			$posts_per_page = -1;
+		} else {
+			$paged = get_query_var("paged") ? get_query_var("paged") : 1;
+			$posts_per_page = $settings["posts_per_page"];
+		}
 
 		$query_args = $this->build_query_args($settings);
 		$query_args["paged"] = $paged;
+		$query_args["posts_per_page"] = $posts_per_page;
+
 		$products_query = new WP_Query($query_args);
 
 		if (!$products_query->have_posts()) {
@@ -340,7 +369,18 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		$grid_class .=
 			" elementor-grid-mobile-" . ($settings["columns_mobile"] ?? "1");
 
-		$pagination_type = $settings["pagination_type"];
+		$pagination_type =
+			$settings["show_all_products"] === "yes"
+				? "none"
+				: $settings["pagination_type"];
+
+		// ✅ FIXED: Properly encode settings for AJAX
+		$encoded_settings = base64_encode(
+			wp_json_encode([
+				"use_custom_template" => $settings["use_custom_template"],
+				"template_id" => $settings["template_id"] ?? "",
+			]),
+		);
 		?>
         <div class="custom-product-loop-wrapper"
              id="product-loop-<?php echo esc_attr($widget_id); ?>"
@@ -351,12 +391,19 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
              ); ?>"
              data-current-page="<?php echo esc_attr($paged); ?>"
              data-query="<?php echo esc_attr(
-             	base64_encode(json_encode($query_args)),
-             ); ?>">
+             	base64_encode(wp_json_encode($query_args)),
+             ); ?>"
+             data-settings="<?php echo esc_attr($encoded_settings); ?>">
 
             <div class="<?php echo esc_attr($grid_class); ?>"
                  data-widget-id="<?php echo esc_attr($widget_id); ?>"
-                 data-columns="<?php echo esc_attr($settings["columns"]); ?>">
+                 data-columns="<?php echo esc_attr($settings["columns"]); ?>"
+                 data-columns-tablet="<?php echo esc_attr(
+                 	$settings["columns_tablet"] ?? "2",
+                 ); ?>"
+                 data-columns-mobile="<?php echo esc_attr(
+                 	$settings["columns_mobile"] ?? "1",
+                 ); ?>">
 
                 <?php
                 while ($products_query->have_posts()) {
@@ -403,11 +450,13 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                 ?>
             </div>
 
-            <?php $this->render_pagination(
-            	$products_query,
-            	$settings,
-            	$widget_id,
-            ); ?>
+            <?php if ($settings["show_all_products"] !== "yes") {
+            	$this->render_pagination(
+            		$products_query,
+            		$settings,
+            		$widget_id,
+            	);
+            } ?>
         </div>
 
         <style>
@@ -432,13 +481,13 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 	}
 
 	/**
-	 * NEW: Build Query Args with Current Query Support
+	 * ✅ FIXED: Build Query Args - Only Published Products
 	 */
 	private function build_query_args($settings)
 	{
 		$args = [
 			"post_type" => "product",
-			"post_status" => "publish",
+			"post_status" => "publish", // ✅ Only published products
 			"posts_per_page" => $settings["posts_per_page"],
 			"ignore_sticky_posts" => true,
 			"no_found_rows" => false,
@@ -529,14 +578,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		);
 	}
 
-	/**
-	 * NEW: Get Current Query Args
-	 * Detects current page type and inherits its query:
-	 * - Product Tag archive → shows products with that tag
-	 * - Product Category archive → shows products in that category
-	 * - Search results → shows search results
-	 * - Shop page → shows all products
-	 */
 	private function get_current_query_args($args, $settings)
 	{
 		$args["paged"] = get_query_var("paged") ? get_query_var("paged") : 1;
@@ -574,10 +615,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 		elseif (is_search()) {
 			$args["s"] = get_search_query();
 		}
-		// Shop Page (show all products)
-		elseif (is_shop()) {
-			// Default behavior - all products
-		}
 
 		// Apply sorting
 		switch ($settings["orderby"]) {
@@ -601,7 +638,6 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
 				$args["order"] = $settings["order"];
 		}
 
-		// Exclude out of stock if set
 		if ($settings["exclude_out_of_stock"] === "yes") {
 			if (!isset($args["meta_query"])) {
 				$args["meta_query"] = [];
@@ -706,6 +742,19 @@ class Elementor_Custom_Product_Loop_Grid extends \Elementor\Widget_Base
                         ); ?>">
                     <?php echo esc_html($settings["load_more_text"]); ?>
                 </button>
+                <div class="loop-loading-message" style="display: none; margin-top: 20px;">
+                    <span class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #333; border-radius: 50%; animation: spin 1s linear infinite;"></span>
+                    <span style="margin-left: 10px;">Loading...</span>
+                </div>
+                <div class="loop-no-more-message" style="display: none; margin-top: 20px; color: #666;">
+                    <?php _e("All products loaded", "hello-elementor-child"); ?>
+                </div>
+                <style>
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
                 <?php break;case "numbers":
 				echo '<div class="loop-pagination loop-page-numbers">';
 				echo paginate_links([
