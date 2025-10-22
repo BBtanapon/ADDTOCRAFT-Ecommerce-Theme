@@ -1,7 +1,8 @@
 <?php
 /**
- * Enhanced Elementor Loop Grid Filter Widget - FIXED
- * NO inline styles - CSS classes handle all styling
+ * Enhanced Elementor Loop Grid Filter Widget - WITH DETAILED LOGGING
+ * ✅ Logs categories, attributes, price range
+ * ✅ Price range from PUBLISHED products only
  *
  * @package HelloElementorChild
  */
@@ -508,10 +509,14 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 		$settings = $this->get_settings_for_display();
 		$widget_id = $this->get_id();
 
+		// ✅ GET DATA WITH LOGGING
 		$categories = $this->get_product_categories();
 		$tags = $this->get_product_tags();
 		$wc_attributes = $this->get_woocommerce_attributes_only();
 		$max_price = $this->get_max_price();
+
+		// ✅ LOG EVERYTHING TO CONSOLE
+		$this->log_filter_data($categories, $tags, $wc_attributes, $max_price);
 		?>
 
 		<style>
@@ -532,7 +537,6 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 				cursor: pointer;
 				z-index: 10;
 				transition: all 0.2s ease;
-				/*display: none;*/
 			}
 
 			.elementor-widget-loop_grid_filter .filter-close-btn:hover {
@@ -612,63 +616,147 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 				margin-top: 12px !important;
 			}
 
-			/* Price Slider Fix */
+			/* ✅ FIXED: Price Slider - Both Min and Max Draggable */
+			.elementor-widget-loop_grid_filter .price-slider-container {
+				position: relative;
+				padding: 10px 0;
+			}
+
 			.elementor-widget-loop_grid_filter .price-slider-wrapper {
 				position: relative;
+				height: 30px;
+				margin: 15px 0 20px 0;
+				display: flex;
+				align-items: center;
+			}
+
+			/* Background track */
+			.elementor-widget-loop_grid_filter .price-slider-track-bg {
+				position: absolute;
+				width: 100%;
 				height: 5px;
-				margin: 25px 0 20px 0;
+				background: #e0e0e0;
+				border-radius: 3px;
+				top: 50%;
+				transform: translateY(-50%);
+			}
+
+			/* Active track */
+			.elementor-widget-loop_grid_filter .price-slider-track {
+				position: absolute;
+				height: 5px;
+				background: #1e1e1e;
+				border-radius: 3px;
+				top: 50%;
+				transform: translateY(-50%);
+				pointer-events: none;
 			}
 
 			.elementor-widget-loop_grid_filter .price-slider-wrapper input[type="range"] {
 				position: absolute;
 				width: 100%;
-				top: -8px;
-				height: 20px;
+				height: 30px;
 				background: transparent;
-				pointer-events: all !important;
+				pointer-events: none;
 				appearance: none;
 				-webkit-appearance: none;
-				cursor: pointer;
-				z-index: 5;
+				margin: 0;
+				padding: 0;
+				margin-top: 5px;
 			}
 
+			/* ✅ Make thumbs interactive */
 			.elementor-widget-loop_grid_filter .price-slider-wrapper input[type="range"]::-webkit-slider-thumb {
 				-webkit-appearance: none;
 				appearance: none;
-				width: 18px;
-				height: 18px;
+				width: 20px;
+				height: 20px;
 				background: #1e1e1e;
 				border-radius: 50%;
 				cursor: grab;
 				border: 3px solid white;
-				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-				margin-top: -6.5px;
-				position: relative;
-				z-index: 5;
+				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+				pointer-events: all;
+				transition: transform 0.2s ease;
+			}
+
+			.elementor-widget-loop_grid_filter .price-slider-wrapper input[type="range"]:active::-webkit-slider-thumb {
+				cursor: grabbing;
+				transform: scale(1.2);
+				box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
 			}
 
 			.elementor-widget-loop_grid_filter .price-slider-wrapper input[type="range"]::-moz-range-thumb {
-				width: 18px;
-				height: 18px;
+				width: 20px;
+				height: 20px;
 				background: #1e1e1e;
 				border-radius: 50%;
 				cursor: grab;
 				border: 3px solid white;
-				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-				position: relative;
-				z-index: 5;
+				box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+				pointer-events: all;
+				transition: transform 0.2s ease;
 			}
 
+			.elementor-widget-loop_grid_filter .price-slider-wrapper input[type="range"]:active::-moz-range-thumb {
+				cursor: grabbing;
+				transform: scale(1.2);
+				box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+			}
+
+			/* Hide default track */
+			.elementor-widget-loop_grid_filter .price-slider-wrapper input[type="range"]::-webkit-slider-runnable-track {
+				width: 100%;
+				height: 5px;
+				background: transparent;
+				border: none;
+			}
+
+			.elementor-widget-loop_grid_filter .price-slider-wrapper input[type="range"]::-moz-range-track {
+				width: 100%;
+				height: 5px;
+				background: transparent;
+				border: none;
+			}
+
+			/* Z-index management */
 			.elementor-widget-loop_grid_filter .loop-price-min-slider {
-				z-index: 6 !important;
+				z-index: 3;
 			}
 
 			.elementor-widget-loop_grid_filter .loop-price-max-slider {
+				z-index: 4;
+			}
+
+			.elementor-widget-loop_grid_filter .loop-price-min-slider:active {
 				z-index: 5 !important;
+			}
+
+			/* Price values display */
+			.elementor-widget-loop_grid_filter .price-values {
+				display: flex;
+				justify-content: space-between;
+				margin-top: 10px;
+				font-weight: 600;
+				color: #1e1e1e;
+			}
+
+			/* Price inputs */
+			.elementor-widget-loop_grid_filter .price-inputs {
+				display: flex;
+				gap: 10px;
+				margin-top: 10px;
+			}
+
+			.elementor-widget-loop_grid_filter .price-input {
+				flex: 1;
+				padding: 8px;
+				border: 1px solid #e0e0e0;
+				border-radius: 4px;
+				font-size: 14px;
 			}
 		</style>
 
-		<!-- ✅ NO INLINE STYLE ATTRIBUTE HERE -->
 		<div class="loop-grid-filter-widget"
 		     data-widget-id="<?php echo esc_attr($widget_id); ?>"
 		     data-target="<?php echo esc_attr($settings["target_loop_grid_id"]); ?>"
@@ -676,7 +764,6 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
        	$settings["expandable_sections"],
        ); ?>">
 
-			<!-- ✅ NO INLINE STYLE ATTRIBUTE HERE EITHER -->
 			<div class="loop-filter-sidebar">
 				<button class="filter-close-btn" aria-label="Close Filters"></button>
 
@@ -852,17 +939,15 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 					const isExpandable = widget.data('expandable') === 'yes' || widget.data('expandable') === '1';
 					const sidebar = widget.find('.loop-filter-sidebar');
 
-					// ✅ CRITICAL: Remove any inline styles immediately
 					sidebar.removeAttr('style');
-					console.log('✅ Removed inline styles from sidebar on init');
 
-					// Close button functionality
+					// Close button
 					widget.on('click', '.filter-close-btn', function(e) {
 						e.preventDefault();
 						sidebar.slideUp(300);
 					});
 
-					// Toggle sections for Categories, Tags, Attributes
+					// Toggle sections
 					if (isExpandable) {
 						widget.on('click', '.filter-toggle-label', function(e) {
 							e.preventDefault();
@@ -870,14 +955,13 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 							const content = toggle.siblings('.filter-content');
 
 							if (content.hasClass('always-show')) {
-								return; // Don't toggle search, sort, price
+								return;
 							}
 
 							toggle.toggleClass('collapsed');
 							content.toggleClass('hidden');
 						});
 
-						// Expand all by default (except those with always-show class)
 						widget.find('.filter-toggle-label').each(function() {
 							const content = $(this).siblings('.filter-content');
 							if (!content.hasClass('always-show')) {
@@ -886,22 +970,39 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 							}
 						});
 					} else {
-						// If not expandable, hide toggle arrows
 						widget.find('.filter-toggle-label').addClass('no-toggle');
 						widget.find('.filter-content').addClass('always-show');
 					}
 
-					// Price range fix
+					// Price range
 					const minSlider = widget.find('.loop-price-min-slider');
 					const maxSlider = widget.find('.loop-price-max-slider');
 					const minInput = widget.find('.loop-price-min-input');
 					const maxInput = widget.find('.loop-price-max-input');
 
+					// ✅ Improve z-index handling when dragging
+					minSlider.on('mousedown touchstart', function() {
+						$(this).css('z-index', '5');
+						maxSlider.css('z-index', '4');
+					});
+
+					maxSlider.on('mousedown touchstart', function() {
+						$(this).css('z-index', '5');
+						minSlider.css('z-index', '3');
+					});
+
+					// ✅ Reset z-index after dragging
+					$(document).on('mouseup touchend', function() {
+						// Default: max slider slightly on top
+						minSlider.css('z-index', '3');
+						maxSlider.css('z-index', '4');
+					});
+
 					function updatePriceDisplay() {
 						let minVal = parseInt(minSlider.val()) || 0;
 						let maxVal = parseInt(maxSlider.val()) || <?php echo esc_js($max_price); ?>;
 
-						// Prevent crossing
+						// ✅ Prevent sliders from crossing
 						if (minVal > maxVal - 100) {
 							minSlider.val(maxVal - 100);
 							minVal = maxVal - 100;
@@ -916,7 +1017,6 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 						minInput.val(minVal);
 						maxInput.val(maxVal);
 
-						// Update track position
 						const maxPrice = <?php echo esc_js($max_price); ?>;
 						const minPercent = (minVal / maxPrice) * 100;
 						const maxPercent = (maxVal / maxPrice) * 100;
@@ -927,11 +1027,9 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 						});
 					}
 
-					// Slider input
 					minSlider.on('input change', updatePriceDisplay);
 					maxSlider.on('input change', updatePriceDisplay);
 
-					// Manual input
 					minInput.on('change', function() {
 						let val = parseInt($(this).val()) || 0;
 						minSlider.val(val);
@@ -944,7 +1042,6 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 						updatePriceDisplay();
 					});
 
-					// Initialize display
 					updatePriceDisplay();
 				});
 			})(jQuery);
@@ -952,9 +1049,89 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 		<?php
 	}
 
+	/**
+	 * ✅ LOG FILTER DATA TO CONSOLE
+	 */
+	private function log_filter_data(
+		$categories,
+		$tags,
+		$wc_attributes,
+		$max_price,
+	) {
+		?>
+		<script>
+		console.group('%c📊 FILTER DATA LOADED', 'color: #FF5722; font-weight: bold; font-size: 16px;');
+
+		// Categories
+		console.group('%c📁 Categories', 'color: #2196F3; font-weight: bold;');
+		console.log('Total Categories:', <?php echo count($categories); ?>);
+		<?php if (!empty($categories)): ?>
+			<?php foreach ($categories as $cat): ?>
+				console.log('  • <?php echo esc_js($cat->name); ?> (ID: <?php echo esc_js(
+ 	$cat->term_id,
+ ); ?>, Count: <?php echo esc_js($cat->count); ?>)');
+			<?php endforeach; ?>
+		<?php else: ?>
+			console.warn('No categories found');
+		<?php endif; ?>
+		console.groupEnd();
+
+		// Tags
+		console.group('%c🏷️ Tags', 'color: #9C27B0; font-weight: bold;');
+		console.log('Total Tags:', <?php echo count($tags); ?>);
+		<?php if (!empty($tags)): ?>
+			<?php foreach ($tags as $tag): ?>
+				console.log('  • <?php echo esc_js($tag->name); ?> (ID: <?php echo esc_js(
+ 	$tag->term_id,
+ ); ?>, Count: <?php echo esc_js($tag->count); ?>)');
+			<?php endforeach; ?>
+		<?php else: ?>
+			console.warn('No tags found');
+		<?php endif; ?>
+		console.groupEnd();
+
+		// Attributes
+		console.group('%c🎨 WooCommerce Attributes', 'color: #FF9800; font-weight: bold;');
+		console.log('Total Attributes:', <?php echo count($wc_attributes); ?>);
+		<?php if (!empty($wc_attributes)): ?>
+			<?php foreach ($wc_attributes as $attribute): ?>
+				console.group('  📌 <?php echo esc_js(
+    	$attribute["label"],
+    ); ?> (<?php echo esc_js($attribute["taxonomy"]); ?>)');
+				console.log('    Terms Count:', <?php echo count($attribute["terms"]); ?>);
+				<?php foreach ($attribute["terms"] as $term): ?>
+					console.log('      • <?php echo esc_js(
+     	$term->name,
+     ); ?> (Slug: <?php echo esc_js($term->slug); ?>, Count: <?php echo esc_js(
+	$term->count,
+); ?>)');
+				<?php endforeach; ?>
+				console.groupEnd();
+			<?php endforeach; ?>
+		<?php else: ?>
+			console.warn('No WooCommerce attributes found');
+		<?php endif; ?>
+		console.groupEnd();
+
+		// Price Range
+		console.group('%c💰 Price Range (PUBLISHED PRODUCTS ONLY)', 'color: #4CAF50; font-weight: bold;');
+		console.log('Max Price:', '฿<?php echo number_format($max_price); ?>');
+		console.log('Min Price:', '฿0');
+		console.log('Range:', '฿0 - ฿<?php echo number_format($max_price); ?>');
+		console.groupEnd();
+
+		console.groupEnd();
+		</script>
+		<?php
+	}
+
+	/**
+	 * ✅ FIXED: Get ONLY WooCommerce Attributes (pa_*)
+	 */
 	private function get_woocommerce_attributes_only()
 	{
 		if (!class_exists("WooCommerce")) {
+			error_log("❌ WooCommerce not active");
 			return [];
 		}
 
@@ -963,12 +1140,22 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 			"SELECT * FROM {$wpdb->prefix}woocommerce_attribute_taxonomies",
 		);
 
+		if (empty($wc_attributes)) {
+			error_log("⚠️ No WooCommerce attributes found in database");
+			return [];
+		}
+
+		error_log(
+			"📊 Found " . count($wc_attributes) . " WC attributes in database",
+		);
+
 		$attributes = [];
 
 		foreach ($wc_attributes as $attribute) {
 			$taxonomy = "pa_" . $attribute->attribute_name;
 
 			if (!taxonomy_exists($taxonomy)) {
+				error_log("⚠️ Taxonomy does not exist: " . $taxonomy);
 				continue;
 			}
 
@@ -980,8 +1167,19 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 			]);
 
 			if (empty($terms) || is_wp_error($terms)) {
+				error_log("⚠️ No terms found for: " . $taxonomy);
 				continue;
 			}
+
+			error_log(
+				"✅ " .
+					$attribute->attribute_label .
+					" (" .
+					$taxonomy .
+					"): " .
+					count($terms) .
+					" terms",
+			);
 
 			$attributes[] = [
 				"name" => $attribute->attribute_name,
@@ -991,35 +1189,87 @@ class Elementor_Loop_Grid_Filter_Widget extends \Elementor\Widget_Base
 			];
 		}
 
+		error_log("✅ Total WC attributes with terms: " . count($attributes));
+
 		return $attributes;
 	}
 
+	/**
+	 * ✅ Get Product Categories
+	 */
 	private function get_product_categories()
 	{
-		return get_terms([
+		$categories = get_terms([
 			"taxonomy" => "product_cat",
 			"hide_empty" => true,
 		]);
+
+		if (is_wp_error($categories)) {
+			error_log(
+				"❌ Error getting categories: " .
+					$categories->get_error_message(),
+			);
+			return [];
+		}
+
+		error_log("✅ Found " . count($categories) . " product categories");
+		return $categories;
 	}
 
+	/**
+	 * ✅ Get Product Tags
+	 */
 	private function get_product_tags()
 	{
-		return get_terms([
+		$tags = get_terms([
 			"taxonomy" => "product_tag",
 			"hide_empty" => true,
 		]);
+
+		if (is_wp_error($tags)) {
+			error_log("❌ Error getting tags: " . $tags->get_error_message());
+			return [];
+		}
+
+		error_log("✅ Found " . count($tags) . " product tags");
+		return $tags;
 	}
 
+	/**
+	 * ✅ FIXED: Get Max Price from PUBLISHED PRODUCTS ONLY
+	 */
 	private function get_max_price()
 	{
 		if (!class_exists("WooCommerce")) {
+			error_log("❌ WooCommerce not active for price check");
 			return 10000;
 		}
 
 		global $wpdb;
+
+		// ✅ CRITICAL: Only get prices from PUBLISHED products
 		$max_price = $wpdb->get_var(
-			"SELECT MAX(CAST(meta_value AS UNSIGNED)) FROM {$wpdb->postmeta} WHERE meta_key = '_price' AND meta_value != ''",
+			"SELECT MAX(CAST(pm.meta_value AS UNSIGNED))
+			FROM {$wpdb->postmeta} pm
+			INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+			WHERE pm.meta_key = '_price'
+			AND pm.meta_value != ''
+			AND p.post_type = 'product'
+			AND p.post_status = 'publish'",
 		);
-		return $max_price ? ceil($max_price / 100) * 100 : 10000;
+
+		if (!$max_price) {
+			error_log("⚠️ No max price found, using default 10000");
+			return 10000;
+		}
+
+		$max_price = ceil($max_price / 100) * 100;
+
+		error_log(
+			"✅ Max Price (Published Products Only): ฿" .
+				number_format($max_price),
+		);
+
+		return $max_price;
 	}
 }

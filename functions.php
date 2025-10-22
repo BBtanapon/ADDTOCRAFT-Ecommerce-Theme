@@ -1,7 +1,9 @@
 <?php
 /**
- * Theme functions and definitions - COMPLETE FIX
- * CSS Output Issue Resolved
+ * Theme functions and definitions - COMPLETE FIXED VERSION
+ * ✅ Only published products
+ * ✅ Enhanced cleanup system
+ * ✅ Proper script loading order
  *
  * @package HelloElementorChild
  */
@@ -10,12 +12,15 @@ if (!defined("ABSPATH")) {
 	exit();
 }
 
-define("HELLO_ELEMENTOR_CHILD_VERSION", "2.1.1");
+define("HELLO_ELEMENTOR_CHILD_VERSION", "2.1.2");
 
 // =============================================================================
 // CORE THEME SETUP
 // =============================================================================
 
+/**
+ * Enqueue parent and child theme styles
+ */
 add_action("wp_enqueue_scripts", "hello_elementor_child_scripts_styles", 20);
 function hello_elementor_child_scripts_styles()
 {
@@ -27,6 +32,9 @@ function hello_elementor_child_scripts_styles()
 	);
 }
 
+/**
+ * Load dashicons for non-logged-in users
+ */
 add_action("wp_enqueue_scripts", "load_dashicons_for_non_logged_in_users");
 function load_dashicons_for_non_logged_in_users()
 {
@@ -36,7 +44,7 @@ function load_dashicons_for_non_logged_in_users()
 }
 
 // =============================================================================
-// ELEMENTOR CSS - SIMPLIFIED (Let Elementor Handle It)
+// ELEMENTOR CSS HANDLING
 // =============================================================================
 
 /**
@@ -70,18 +78,21 @@ function force_css_regeneration($post_id, $editor_data)
 add_action("init", "maybe_regenerate_all_elementor_css");
 function maybe_regenerate_all_elementor_css()
 {
-	if (!get_option("elementor_css_regenerated_v5")) {
+	if (!get_option("elementor_css_regenerated_v6")) {
 		if (class_exists("\Elementor\Plugin")) {
 			\Elementor\Plugin::$instance->files_manager->clear_cache();
-			update_option("elementor_css_regenerated_v5", true);
+			update_option("elementor_css_regenerated_v6", true);
 		}
 	}
 }
 
 // =============================================================================
-// AUTO ATTRIBUTES SYSTEM
+// PRODUCT ATTRIBUTES SYSTEM
 // =============================================================================
 
+/**
+ * Get WooCommerce attributes only (no custom attributes)
+ */
 function get_woocommerce_attributes_only()
 {
 	if (!class_exists("WooCommerce")) {
@@ -124,6 +135,9 @@ function get_woocommerce_attributes_only()
 	return $attributes;
 }
 
+/**
+ * Get all product attributes for a single product
+ */
 function get_all_product_attributes($product)
 {
 	if (!$product) {
@@ -144,6 +158,7 @@ function get_all_product_attributes($product)
 		"attributes" => [],
 	];
 
+	// Handle variable products
 	if ($product->is_type("variable")) {
 		$variation_prices = $product->get_variation_prices(true);
 		if (!empty($variation_prices["price"])) {
@@ -162,6 +177,7 @@ function get_all_product_attributes($product)
 			);
 		}
 	} else {
+		// Simple product
 		$attributes_data[
 			"regular_price"
 		] = (float) $product->get_regular_price();
@@ -174,16 +190,19 @@ function get_all_product_attributes($product)
 		}
 	}
 
+	// Categories
 	$categories = get_the_terms($product->get_id(), "product_cat");
 	if ($categories && !is_wp_error($categories)) {
 		$attributes_data["categories"] = wp_list_pluck($categories, "term_id");
 	}
 
+	// Tags
 	$tags = get_the_terms($product->get_id(), "product_tag");
 	if ($tags && !is_wp_error($tags)) {
 		$attributes_data["tags"] = wp_list_pluck($tags, "term_id");
 	}
 
+	// Product attributes (WooCommerce taxonomies only)
 	$product_attributes = $product->get_attributes();
 
 	foreach ($product_attributes as $attribute) {
@@ -193,6 +212,7 @@ function get_all_product_attributes($product)
 
 		$taxonomy = $attribute->get_name();
 
+		// Only include pa_* attributes (WooCommerce attributes)
 		if (strpos($taxonomy, "pa_") !== 0) {
 			continue;
 		}
@@ -213,8 +233,8 @@ function get_all_product_attributes($product)
 }
 
 /**
- * ✅ FIXED: Output Products Data JSON - ONLY PUBLISHED PRODUCTS
- * This ensures only published products are available to the filter
+ * ✅ OUTPUT PRODUCTS DATA JSON - ONLY PUBLISHED PRODUCTS
+ * This is the source of truth for all JavaScript filtering
  */
 add_action("wp_footer", "output_products_data_json", 100);
 function output_products_data_json()
@@ -222,13 +242,16 @@ function output_products_data_json()
 	if (!class_exists("WooCommerce")) {
 		return;
 	}
+
 	$products_data = [];
+
 	// ✅ CRITICAL: Build args to get ONLY published products
 	$args = [
 		"limit" => -1,
 		"status" => "publish", // ✅ ONLY PUBLISHED
-		"return" => "ids", // More efficient
+		"return" => "ids",
 	];
+
 	// If we're on a specific category page, only load those products
 	if (is_product_category()) {
 		$category = get_queried_object();
@@ -239,8 +262,10 @@ function output_products_data_json()
 		$tag = get_queried_object();
 		$args["tag"] = [$tag->slug];
 	}
+
 	// ✅ Get ONLY published product IDs
 	$product_ids = wc_get_products($args);
+
 	// ✅ Double check each product status before adding to data
 	foreach ($product_ids as $product_id) {
 		$product = wc_get_product($product_id);
@@ -249,16 +274,19 @@ function output_products_data_json()
 		if (!$product || $product->get_status() !== "publish") {
 			continue;
 		}
+
 		$product_data = get_all_product_attributes($product);
 
 		if (!empty($product_data)) {
 			$products_data[$product_id] = $product_data;
 		}
 	}
+
 	if (empty($products_data)) {
 		return;
 	}
-	// ✅ Log for debugging (remove in production)
+
+	// ✅ Log for debugging (remove in production if needed)
 	error_log(
 		"📦 Products Data Output: " .
 			count($products_data) .
@@ -270,9 +298,11 @@ function output_products_data_json()
 </script>
 <script>
 window.loopGridProductsData = <?php echo wp_json_encode($products_data); ?>;
-console.log('%c📦 Products data loaded:', 'color: #4CAF50; font-weight: bold;', Object.keys(window.loopGridProductsData).length + ' PUBLISHED products');
-console.log('%c✅ Only published products included', 'color: #4CAF50;');
-// ✅ Debug helper - check product statuses
+console.log('%c📦 Products Data Loaded', 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+console.log('   ✅ Published products:', Object.keys(window.loopGridProductsData).length);
+console.log('   🔒 Only published products included');
+
+// Debug mode (add ?debug=products to URL)
 if (window.location.search.includes('debug=products')) {
     console.group('%c🔍 Product Status Check', 'color: #2196F3; font-weight: bold;');
     Object.entries(window.loopGridProductsData).forEach(([id, data]) => {
@@ -284,15 +314,21 @@ if (window.location.search.includes('debug=products')) {
 <?php
 }
 
+/**
+ * Get all available attributes (wrapper function)
+ */
 function get_all_available_attributes()
 {
 	return get_woocommerce_attributes_only();
 }
 
 // =============================================================================
-// ENQUEUE SCRIPTS
+// ENQUEUE SCRIPTS AND STYLES
 // =============================================================================
 
+/**
+ * ✅ ENQUEUE ALL FILTER ASSETS - PROPER LOADING ORDER
+ */
 add_action("wp_enqueue_scripts", "enqueue_all_filter_assets");
 function enqueue_all_filter_assets()
 {
@@ -300,7 +336,7 @@ function enqueue_all_filter_assets()
 		return;
 	}
 
-	// CSS
+	// CSS - Load first
 	wp_enqueue_style(
 		"loop-grid-filter-styles",
 		get_stylesheet_directory_uri() . "/assets/css/product-filter.css",
@@ -308,7 +344,7 @@ function enqueue_all_filter_assets()
 		HELLO_ELEMENTOR_CHILD_VERSION,
 	);
 
-	// Auto attributes
+	// ✅ STEP 1: Auto attributes (applies data-* attributes to products)
 	wp_enqueue_script(
 		"loop-grid-auto-attributes",
 		get_stylesheet_directory_uri() . "/assets/js/auto-attributes.js",
@@ -317,16 +353,27 @@ function enqueue_all_filter_assets()
 		true,
 	);
 
-	// Filter script
+	// ✅ STEP 2: Cleanup script (removes draft/trash products from DOM)
+	// Must load AFTER auto-attributes
 	wp_enqueue_script(
-		"loop-grid-filter-script",
-		get_stylesheet_directory_uri() . "/assets/js/loop-grid-filter.js",
-		["jquery", "elementor-frontend"],
+		"cleanup-trash-products",
+		get_stylesheet_directory_uri() . "/assets/js/cleanup-trash-products.js",
+		["jquery", "loop-grid-auto-attributes"], // ✅ Depends on auto-attributes
 		HELLO_ELEMENTOR_CHILD_VERSION,
 		true,
 	);
 
-	// Force CSS loader
+	// ✅ STEP 3: Filter script (handles filtering logic)
+	// Must load AFTER cleanup
+	wp_enqueue_script(
+		"loop-grid-filter-script",
+		get_stylesheet_directory_uri() . "/assets/js/loop-grid-filter.js",
+		["jquery", "elementor-frontend", "cleanup-trash-products"], // ✅ Depends on cleanup
+		HELLO_ELEMENTOR_CHILD_VERSION,
+		true,
+	);
+
+	// ✅ STEP 4: Force CSS loader (ensures template CSS loads)
 	wp_enqueue_script(
 		"force-template-css",
 		get_stylesheet_directory_uri() . "/assets/js/force-template-css.js",
@@ -335,7 +382,7 @@ function enqueue_all_filter_assets()
 		true,
 	);
 
-	// Pagination script
+	// ✅ STEP 5: Pagination script
 	wp_enqueue_script(
 		"custom-loop-grid-pagination",
 		get_stylesheet_directory_uri() . "/assets/js/loop-grid-pagination.js",
@@ -344,7 +391,7 @@ function enqueue_all_filter_assets()
 		true,
 	);
 
-	// Loop Grid Layout Fix
+	// ✅ STEP 6: Loop Grid Layout Fix
 	wp_enqueue_script(
 		"fix-loop-grid-layout",
 		get_stylesheet_directory_uri() . "/assets/js/fix-loop-grid-layout.js",
@@ -353,6 +400,7 @@ function enqueue_all_filter_assets()
 		true,
 	);
 
+	// Localize scripts with AJAX data
 	wp_localize_script("loop-grid-auto-attributes", "autoAttributesData", [
 		"ajaxUrl" => admin_url("admin-ajax.php"),
 		"nonce" => wp_create_nonce("loop_grid_filter_nonce"),
@@ -374,9 +422,12 @@ function enqueue_all_filter_assets()
 }
 
 // =============================================================================
-// AJAX PAGINATION HANDLER
+// AJAX HANDLERS
 // =============================================================================
 
+/**
+ * ✅ AJAX PAGINATION HANDLER - ONLY PUBLISHED PRODUCTS
+ */
 add_action("wp_ajax_load_more_products", "ajax_load_more_products_fixed");
 add_action(
 	"wp_ajax_nopriv_load_more_products",
@@ -398,12 +449,12 @@ function ajax_load_more_products_fixed()
 	// Get parameters
 	$page = isset($_POST["page"]) ? intval($_POST["page"]) : 1;
 
-	// ✅ FIXED: Properly decode query args
+	// Decode query args
 	$query_args = isset($_POST["query_args"])
 		? json_decode(stripslashes($_POST["query_args"]), true)
 		: [];
 
-	// ✅ FIXED: Properly decode settings
+	// Decode settings
 	$settings = isset($_POST["settings"])
 		? json_decode(stripslashes($_POST["settings"]), true)
 		: [];
@@ -425,10 +476,6 @@ function ajax_load_more_products_fixed()
 
 	// Update page number
 	$query_args["paged"] = $page;
-
-	// Log for debugging (remove in production)
-	error_log("Load More - Page: " . $page);
-	error_log("Load More - Query Args: " . print_r($query_args, true));
 
 	// Execute query
 	$products_query = new WP_Query($query_args);
@@ -521,8 +568,7 @@ function ajax_load_more_products_fixed()
 	$product->get_id(),
 ); ?>" <?php echo $data_attrs; ?>>
 	<?php // Check if custom template should be used
-
-		if (
+ if (
  	!empty($settings["use_custom_template"]) &&
  	$settings["use_custom_template"] === "yes" &&
  	!empty($settings["template_id"]) &&
@@ -601,10 +647,9 @@ function render_default_product_card_fixed($product)
 <?php
 }
 
-// =============================================================================
-// WOOCOMMERCE AJAX
-// =============================================================================
-
+/**
+ * ✅ WOOCOMMERCE AJAX ADD TO CART
+ */
 add_action(
 	"wp_ajax_woocommerce_ajax_add_to_cart",
 	"woocommerce_ajax_add_to_cart",
@@ -663,9 +708,12 @@ function woocommerce_ajax_add_to_cart()
 }
 
 // =============================================================================
-// ELEMENTOR WIDGETS
+// ELEMENTOR WIDGETS REGISTRATION
 // =============================================================================
 
+/**
+ * Add custom widget categories
+ */
 add_action(
 	"elementor/elements/categories_registered",
 	"add_elementor_widget_categories",
@@ -678,6 +726,9 @@ function add_elementor_widget_categories($elements_manager)
 	]);
 }
 
+/**
+ * Register custom Elementor widgets
+ */
 add_action("elementor/widgets/register", "register_custom_elementor_widgets");
 function register_custom_elementor_widgets($widgets_manager)
 {
@@ -697,6 +748,7 @@ function register_custom_elementor_widgets($widgets_manager)
 		}
 	}
 
+	// Register widgets
 	if (class_exists("Elementor_Login_Logout_Widget")) {
 		$widgets_manager->register(new \Elementor_Login_Logout_Widget());
 	}
@@ -717,6 +769,9 @@ function register_custom_elementor_widgets($widgets_manager)
 	}
 }
 
+/**
+ * Create elementor-widgets directory if it doesn't exist
+ */
 add_action("init", "create_elementor_widgets_directory");
 function create_elementor_widgets_directory()
 {
@@ -730,9 +785,37 @@ function create_elementor_widgets_directory()
 // CUSTOM LOOP QUERIES
 // =============================================================================
 
+/**
+ * Load custom loop query sources
+ */
 $loop_queries_file =
 	get_stylesheet_directory() . "/includes/class-elementor-loop-queries.php";
 if (file_exists($loop_queries_file)) {
 	require_once $loop_queries_file;
 	new Custom_Elementor_Loop_Query_Sources();
+}
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
+/**
+ * Debug function - Add ?debug=products to URL to see product data
+ */
+add_action("wp_footer", "add_product_debug_info", 999);
+function add_product_debug_info()
+{
+	if (!isset($_GET["debug"]) || $_GET["debug"] !== "products") {
+		return;
+	}
+
+	if (!current_user_can("manage_options")) {
+		return;
+	}?>
+<script>
+console.log('%c🔧 DEBUG MODE ACTIVE', 'background: #222; color: #bada55; font-size: 16px; font-weight: bold; padding: 5px;');
+console.log('Products data object:', window.loopGridProductsData);
+console.log('Total products:', Object.keys(window.loopGridProductsData || {}).length);
+</script>
+<?php
 }

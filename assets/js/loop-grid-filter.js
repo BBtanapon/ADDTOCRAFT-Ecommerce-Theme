@@ -143,7 +143,7 @@
 			this.gridClasses = this.targetGrid.attr("class") || "";
 			this.gridStyles = this.targetGrid.attr("style") || "";
 
-			console.log("📦 Capturing products...");
+			console.log("📦 Capturing PUBLISHED products only...");
 
 			this.uniqueProducts.clear();
 
@@ -207,6 +207,20 @@
 					`   🚫 Skipped ${skippedNonPublished} non-published products`,
 				);
 			}
+		}
+
+		/**
+		 * ✅ Check if product is published
+		 */
+		isProductPublished(productId) {
+			// Check in the global products data
+			if (
+				window.loopGridProductsData &&
+				window.loopGridProductsData[productId]
+			) {
+				return true; // Product is in data = published
+			}
+			return false; // Not in data = not published
 		}
 
 		/**
